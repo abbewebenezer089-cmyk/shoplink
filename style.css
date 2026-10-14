@@ -1,0 +1,121 @@
+:root {
+  --ink: #1E2347;
+  --ink-soft: #4A5078;
+  --paper: #F6F7FB;
+  --card: #FFFFFF;
+  --marigold: #F5B82E;
+  --chili: #D93A2B;
+  --wa: #1C9C57;
+  --line: #D9DCEA;
+  --display: "Bricolage Grotesque", system-ui, sans-serif;
+  --body: "Hanken Grotesk", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+:focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
+
+.wrap { width: min(100% - 2.5rem, 34rem); margin-inline: auto; }
+
+.top { padding: 1.25rem 0; }
+.top .wrap { display: flex; align-items: center; gap: .65rem; }
+.top img { width: 2.25rem; height: 2.25rem; }
+.brand { font-family: var(--display); font-weight: 800; font-size: 1.35rem; letter-spacing: -.01em; }
+
+.hero { padding: 1.5rem 0 2rem; }
+h1 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(2.5rem, 11vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: -.03em;
+  margin: 0 0 1rem;
+}
+.lead { color: var(--ink-soft); margin: 0 0 1.5rem; max-width: 30rem; }
+
+.linkchip {
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 999px;
+  padding: .7rem 1.1rem .7rem .8rem;
+  font-weight: 600;
+  font-size: 1rem;
+  word-break: break-all;
+}
+.linkchip i {
+  width: 1.5rem; height: 1.5rem; flex: none;
+  border-radius: 50%;
+  background: var(--marigold);
+  display: grid; place-items: center;
+  color: var(--ink); font-style: normal; font-weight: 800; font-size: .85rem;
+}
+
+.auth {
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  margin: 1rem 0 2.5rem;
+  box-shadow: 6px 6px 0 var(--marigold);
+}
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; background: var(--paper); border-radius: .8rem; padding: .3rem; margin-bottom: 1.25rem; }
+.tabs button {
+  font: inherit; font-weight: 700;
+  border: 0; background: transparent; color: var(--ink-soft);
+  padding: .7rem; border-radius: .6rem; cursor: pointer; min-height: 2.75rem;
+}
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+
+form { display: grid; gap: 1rem; }
+form[hidden] { display: none; }
+label { display: grid; gap: .35rem; font-weight: 600; font-size: .95rem; }
+.hint { font-weight: 400; color: var(--ink-soft); font-size: .85rem; }
+input {
+  font: inherit; font-size: 1rem;
+  padding: .8rem .9rem; min-height: 3rem;
+  border: 2px solid var(--line); border-radius: .7rem;
+  background: #fff; color: var(--ink);
+}
+input:focus { border-color: var(--ink); outline: none; box-shadow: 0 0 0 3px var(--marigold); }
+
+.btn {
+  font: inherit; font-weight: 800; font-size: 1.05rem;
+  background: var(--marigold); color: var(--ink);
+  border: 2px solid var(--ink); border-radius: .8rem;
+  min-height: 3.25rem; padding: .8rem 1rem; cursor: pointer;
+}
+.btn:active { transform: translateY(1px); }
+.btn[disabled] { opacity: .6; cursor: wait; }
+
+.msg { margin: 0; padding: .75rem .9rem; border-radius: .7rem; font-size: .95rem; font-weight: 600; }
+.msg[hidden] { display: none; }
+.msg.error { background: #FCE6E3; color: #8E1F14; }
+.msg.ok { background: #E1F3E9; color: #0F5A31; }
+
+.steps { padding: 0; margin: 0 0 3rem; list-style: none; display: grid; gap: 1.25rem; }
+.steps li { display: grid; grid-template-columns: 2.5rem 1fr; gap: .9rem; align-items: start; }
+.steps b {
+  width: 2.5rem; height: 2.5rem; border-radius: 50%;
+  background: var(--ink); color: var(--marigold);
+  display: grid; place-items: center;
+  font-family: var(--display); font-size: 1.15rem;
+}
+.steps h3 { margin: 0 0 .15rem; font-family: var(--display); font-size: 1.2rem; }
+.steps p { margin: 0; color: var(--ink-soft); }
+h2 { font-family: var(--display); font-size: 1.6rem; letter-spacing: -.02em; margin: 0 0 1.25rem; }
+
+.foot { border-top: 2px solid var(--line); padding: 1.5rem 0 2.5rem; color: var(--ink-soft); font-size: .9rem; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

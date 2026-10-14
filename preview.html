@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShopLink preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Hanken+Grotesk:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1E2347; --ink-soft:#4A5078; --paper:#F6F7FB; --card:#fff;
+  --marigold:#F5B82E; --marigold-soft:#FDF1D3; --chili:#D93A2B; --wa:#1C9C57; --line:#D9DCEA;
+  --display:"Bricolage Grotesque",system-ui,sans-serif; --body:"Hanken Grotesk",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:1rem;line-height:1.5;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--marigold);outline-offset:2px}
+.wrap{width:min(100% - 2.5rem,34rem);margin-inline:auto;padding-bottom:4rem}
+.muted{color:var(--ink-soft);margin:0;font-size:.9rem}
+
+/* top bar */
+.bar{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:2px solid var(--line);padding:.8rem 0 .7rem}
+.bar .wrap{padding-bottom:0}
+.brandrow{display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem}
+.brandrow svg{width:2rem;height:2rem}
+.brand{font-family:var(--display);font-weight:800;font-size:1.25rem}
+.tag{margin-left:auto;font-size:.75rem;font-weight:700;background:var(--marigold-soft);padding:.2rem .6rem;border-radius:99px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:.3rem;background:#E7E9F3;border-radius:.8rem;padding:.25rem}
+.seg button{border:0;background:transparent;font-weight:700;color:var(--ink-soft);padding:.6rem .4rem;border-radius:.6rem;min-height:2.75rem}
+.seg button[aria-selected="true"]{background:var(--ink);color:var(--paper)}
+.badge{display:inline-block;min-width:1.25rem;background:var(--chili);color:#fff;border-radius:99px;font-size:.75rem;padding:0 .35rem;margin-left:.3rem}
+
+.lead{color:var(--ink-soft);margin:1.2rem 0 1rem}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.01em;margin:0}
+
+/* chips */
+.chips{display:flex;gap:.5rem;overflow-x:auto;margin:0 -1.25rem 1.25rem;padding:.2rem 1.25rem;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:2px solid var(--line);background:#fff;border-radius:99px;padding:.5rem .95rem;font-weight:700;font-size:.92rem;min-height:2.5rem}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+
+/* buyer: shops with horizontal rows */
+.shop{margin-bottom:1.75rem}
+.shop-head{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-bottom:.7rem}
+.shop-head h2{font-size:1.3rem;overflow-wrap:anywhere}
+.shop-head .who{display:flex;gap:.8rem;align-items:center;min-width:0}
+.wa-link{border:2px solid var(--wa);background:#fff;color:var(--wa);font-weight:800;border-radius:99px;padding:.4rem .85rem;font-size:.88rem;min-height:2.5rem}
+.row{display:flex;gap:.85rem;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -1.25rem;padding:.2rem 1.25rem 1rem;scrollbar-width:none}
+.row::-webkit-scrollbar{display:none}
+
+.card{background:var(--card);border:2px solid var(--line);border-radius:1rem;overflow:hidden}
+.card.h{flex:0 0 11.5rem;scroll-snap-align:start;padding:.65rem}
+.card.h h3{font-size:1.05rem;margin:.55rem 0 .1rem}
+.price{margin:0;font-weight:800}
+.note{display:inline-block;margin:.45rem 0 .6rem;background:var(--marigold-soft);padding:.2rem .6rem;border-radius:.5rem;font-size:.82rem;font-weight:600}
+.swatches{display:flex;align-items:center;gap:.25rem;margin-top:.5rem}
+.dot{width:.9rem;height:.9rem;border-radius:50%;border:1px solid rgba(0,0,0,.2)}
+.more{font-size:.8rem;font-weight:700;color:var(--ink-soft)}
+
+.tile-wrap{position:relative}
+.tile{display:grid;place-items:center;border-radius:.7rem}
+.tile svg{width:46%;fill:currentColor}
+.card.h .tile{aspect-ratio:1}
+.card.v .tile{aspect-ratio:4/5;border-radius:0}
+.stamp{position:absolute;inset:auto auto 50% 50%;transform:translate(-50%,50%) rotate(-12deg);border:3px solid var(--chili);color:var(--chili);background:rgba(255,255,255,.92);font-family:var(--display);font-weight:800;font-size:1.3rem;padding:.1rem .7rem;border-radius:.4rem}
+
+.btn{width:100%;border:2px solid var(--ink);background:var(--marigold);color:var(--ink);font-weight:800;border-radius:.8rem;min-height:2.9rem;padding:.6rem .8rem}
+.btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
+.btn.ghost{background:#fff}
+.btn.danger{background:#fff;border-color:var(--chili);color:var(--chili)}
+.btn[disabled]{background:#E7E9F3;border-color:#E7E9F3;color:var(--ink-soft);cursor:not-allowed}
+.btn.sm{min-height:2.6rem;font-size:.92rem}
+
+/* seller: account + vertical feed */
+.acct{background:var(--card);border:2px solid var(--ink);border-radius:1.1rem;padding:1.1rem;margin:1.2rem 0 1rem;box-shadow:6px 6px 0 var(--marigold)}
+.acct-top{display:flex;justify-content:space-between;gap:.8rem;align-items:flex-start}
+.acct h2{font-size:1.35rem}
+.pill{flex:none;font-size:.8rem;font-weight:800;padding:.2rem .65rem;border-radius:99px}
+.pill.ok{background:#E1F3E9;color:#0F5A31}
+.pill.wait{background:var(--marigold-soft);color:#7A5200}
+.pill.off{background:#FCE6E3;color:#8E1F14}
+.meter{height:.6rem;background:#E7E9F3;border-radius:99px;margin:.9rem 0 .35rem;overflow:hidden}
+.meter div{height:100%;background:var(--ink);border-radius:99px}
+.warn{background:#FCE6E3;color:#8E1F14;border-radius:.8rem;padding:.8rem .95rem;font-weight:600;margin-bottom:1rem}
+.subtabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:2px solid var(--line);margin-bottom:1rem}
+.subtabs button{border:0;background:transparent;font-weight:800;color:var(--ink-soft);padding:.8rem .4rem;border-bottom:4px solid transparent;margin-bottom:-2px;min-height:2.9rem}
+.subtabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--marigold)}
+.feed{display:grid;gap:1.1rem;margin-top:1rem}
+.card.v .pics{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+.card.v .pics::-webkit-scrollbar{display:none}
+.pic{position:relative;flex:0 0 100%;scroll-snap-align:start}
+.count{position:absolute;right:.7rem;bottom:.7rem;background:rgba(30,35,71,.85);color:#fff;font-size:.78rem;font-weight:700;padding:.15rem .55rem;border-radius:99px}
+.card.v .body{padding:.9rem 1rem 1rem}
+.card.v h3{font-size:1.2rem}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.5rem}
+.empty{color:var(--ink-soft);text-align:center;padding:2rem 0}
+
+/* chat */
+.thread{display:flex;flex-direction:column;gap:.55rem;max-height:52vh;overflow-y:auto;padding:.2rem 0 .8rem}
+.bubble{max-width:82%;padding:.6rem .85rem;border-radius:1rem;font-size:.97rem;white-space:pre-wrap;word-break:break-word}
+.bubble small{display:block;opacity:.65;font-size:.72rem;margin-top:.15rem}
+.bubble.them{align-self:flex-start;background:#fff;border:2px solid var(--line);border-bottom-left-radius:.3rem}
+.bubble.me{align-self:flex-end;background:var(--ink);color:var(--paper);border-bottom-right-radius:.3rem}
+.send{display:flex;gap:.5rem;position:sticky;bottom:0;background:var(--paper);padding:.6rem 0}
+.send input{flex:1}
+.send .btn{width:auto;padding-inline:1.1rem}
+input,select{font:inherit;font-size:1rem;padding:.75rem .85rem;min-height:3rem;border:2px solid var(--line);border-radius:.7rem;background:#fff;color:var(--ink);width:100%}
+input:focus,select:focus{border-color:var(--ink);outline:none;box-shadow:0 0 0 3px var(--marigold)}
+label{display:grid;gap:.3rem;font-weight:700;font-size:.92rem}
+
+/* admin */
+.sellers{display:grid;gap:.9rem;margin:1rem 0 1.75rem}
+.seller{background:#fff;border:2px solid var(--line);border-radius:1rem;padding:1rem}
+.seller h3{font-size:1.15rem}
+.seller dl{display:grid;grid-template-columns:auto 1fr;gap:.2rem .8rem;margin:.7rem 0 .9rem;font-size:.92rem}
+.seller dt{color:var(--ink-soft)}
+.seller dd{margin:0;font-weight:600}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}
+.btns .full{grid-column:1/-1}
+h2.sec{font-size:1.3rem;margin-top:1.5rem}
+
+/* sheet + toast */
+.scrim{position:fixed;inset:0;background:rgba(30,35,71,.55);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--paper);width:min(100%,34rem);max-height:88vh;overflow-y:auto;border-radius:1.25rem 1.25rem 0 0;padding:1.25rem 1.25rem 1.75rem}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.sheet-head h2{font-size:1.35rem}
+.x{border:0;background:#E7E9F3;border-radius:50%;width:2.6rem;height:2.6rem;font-size:1.2rem}
+.sheet form{display:grid;gap:.9rem}
+.err{margin:0;color:#8E1F14;background:#FCE6E3;border-radius:.7rem;padding:.65rem .8rem;font-weight:600;font-size:.92rem}
+.err:empty{display:none}
+.mini{display:flex;justify-content:space-between;align-items:center;gap:.8rem;padding:.65rem 0;border-bottom:1px solid var(--line)}
+.mini b{display:block}
+.mini .btn{width:auto;padding-inline:.9rem}
+.toast{position:fixed;left:50%;bottom:1.25rem;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.75rem 1.1rem;border-radius:.8rem;z-index:30;max-width:calc(100% - 2rem);font-weight:600;text-align:center}
+/* logos and profile photos */
+.logo,.photo{flex:none;display:grid;place-items:center;overflow:hidden;font-family:var(--display);font-weight:800}
+img.logo,img.photo{display:block;object-fit:cover}
+.logo{border-radius:.8rem}
+.logo.xs{width:1.6rem;height:1.6rem;border-radius:.4rem;font-size:.8rem}
+.logo.sm{width:2.6rem;height:2.6rem;font-size:1.1rem}
+.logo.md{width:3.25rem;height:3.25rem;font-size:1.4rem}
+.logo.lg{width:4.5rem;height:4.5rem;font-size:1.8rem;border-radius:1rem}
+.photo{border-radius:50%;background:var(--ink);color:var(--paper)}
+.photo.xs{width:1.5rem;height:1.5rem;font-size:.7rem}
+.photo.sm{width:2.75rem;height:2.75rem;font-size:1rem}
+.photo.lg{width:4.5rem;height:4.5rem;font-size:1.6rem}
+.owner{display:flex;align-items:center;gap:.4rem;font-size:.85rem;color:var(--ink-soft);margin-top:.2rem}
+.who2{display:flex;gap:.8rem;align-items:center;min-width:0}
+.person{display:flex;align-items:center;gap:.8rem;margin-top:.9rem;padding-top:.9rem;border-top:2px solid var(--line)}
+.person>div{flex:1;min-width:0}
+.person b{display:block}
+.person .btn{width:auto;padding-inline:1rem}
+.pick{display:flex;gap:.9rem;align-items:center;margin-top:.5rem}
+.pick input{min-height:0;padding:.55rem}
+.cats{display:flex;flex-wrap:wrap;gap:.5rem;margin:.8rem 0}
+.cat-tag{background:#fff;border:2px solid var(--line);border-radius:99px;padding:.35rem .8rem;font-weight:700;font-size:.9rem}
+.addcat{display:flex;gap:.5rem}
+.addcat .btn{width:auto;padding-inline:1.1rem}
+.shop-head{flex-wrap:wrap}
+.shop-head .who{flex:1 1 13rem}
+.hbtns{display:flex;gap:.45rem;flex:none}
+.info-link{border:2px solid var(--ink);background:#fff;color:var(--ink);font-weight:800;border-radius:99px;padding:.4rem .85rem;font-size:.88rem;min-height:2.5rem}
+.idcard{display:flex;gap:.9rem;align-items:center;margin-bottom:.9rem}
+.idcard h3{font-size:1.2rem}
+.info{display:grid;grid-template-columns:auto 1fr;gap:.7rem 1rem;margin:1rem 0 1.25rem;padding-top:1rem;border-top:2px solid var(--line)}
+.info dt{color:var(--ink-soft);font-weight:600}
+.info dd{margin:0;font-weight:700;overflow-wrap:anywhere}
+.info a{color:var(--ink)}
+.seller dd{overflow-wrap:anywhere}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <div class="brandrow">
+      <svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#1E2347"/><g transform="rotate(-35 256 256)" fill="none" stroke-width="38"><rect x="96" y="196" width="206" height="120" rx="60" stroke="#F5B82E"/><rect x="210" y="196" width="206" height="120" rx="60" stroke="#F6F7FB"/></g></svg>
+      <span class="brand">ShopLink</span>
+      <span class="tag">Preview with sample data</span>
+    </div>
+    <div class="seg" role="tablist" id="seg"></div>
+  </div>
+</header>
+<div id="app"></div>
+<div id="overlay"></div>
+
+<script>
+/* ---------- sample data ---------- */
+const TODAY = new Date();
+const CATS = ['Clothes','Boots','Pomade and spray','Necklaces and chains','Other'];
+const KEY = {'Clothes':'shirt','Boots':'boot','Pomade and spray':'spray','Necklaces and chains':'chain','Other':'bag'};
+const ICONS = {
+  shirt:'<path d="M22 10 33 6Q40 14 47 6L58 10 72 24 63 33 58 29V70H22V29L17 33 8 24Z"/>',
+  boot:'<path d="M17 8H46V36C46 41 49 43 53 45L67 51C71 53 73 56 73 61V68H17Z"/>',
+  spray:'<path d="M33 6H47V14H53V24H27V14H33ZM24 28H56V68Q56 74 50 74H30Q24 74 24 68Z"/>',
+  chain:'<path d="M14 16C14 52 66 52 66 16" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><circle cx="40" cy="60" r="9"/>',
+  bag:'<path d="M18 30H62L66 72H14Z"/><path d="M28 32V22Q28 10 40 10Q52 10 52 22V32" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>'
+};
+const PALETTE = ['#2F5D8A','#C8423B','#2E7D5B','#E2A93B','#6B4E9B','#222222','#B98A5A','#6A4326','#BFC5CC','#D9A93A'];
+
+const sellers = [
+  {id:'amaka', name:"Amaka's Closet", slug:'amakas-closet', owner:'Amaka Obi', type:'Clothes', color:'#2F5D8A', logo:null, photo:null, status:'active', exp:'2027-04-13', limit:80, phone:'+234 801 000 0001', email:'amaka@example.com', location:'Ikeja, Lagos', landmark:'Opposite City Mall'},
+  {id:'mama', name:'Mama Tee Stores', slug:'mama-tee-stores', owner:'Tolu Bankole', type:'General store', color:'#C8423B', logo:null, photo:null, status:'active', exp:'2027-10-13', limit:80, phone:'+234 806 000 0006', email:'tolu@example.com', location:'Wuse Market, Abuja', landmark:'Beside the First Bank branch'},
+  {id:'boots', name:'Bootsville', slug:'bootsville', owner:'Emeka Dike', type:'Boots', color:'#6A4326', logo:null, photo:null, status:'active', exp:'2027-10-13', limit:80, phone:'+234 802 000 0002', email:'emeka@example.com', location:'Main Market, Onitsha', landmark:'Near the Upper Iweka bus stop'},
+  {id:'gold', name:'Gold Link Jewels', slug:'gold-link-jewels', owner:'Ngozi Bello', type:'Necklaces and chains', color:'#D9A93A', logo:null, photo:null, status:'active', exp:'2027-04-13', limit:80, phone:'+234 803 000 0003', email:'ngozi@example.com', location:'Ariaria Market, Aba', landmark:'Close to the Ariaria bridge'},
+  {id:'fresh', name:'Fresh Spray Hub', slug:'fresh-spray-hub', owner:'Sade Adeyemi', type:'Pomade and spray', color:'#2E7D5B', logo:null, photo:null, status:'active', exp:'2027-04-13', limit:80, phone:'+234 804 000 0004', email:'sade@example.com', location:'Bodija, Ibadan', landmark:'Opposite the Bodija market gate'},
+  {id:'pomade', name:'Pomade Palace', slug:'pomade-palace', owner:'Kemi Johnson', type:'Pomade and spray', color:'#6B4E9B', logo:null, photo:null, status:'pending', exp:null, limit:80, phone:'+234 805 000 0005', email:'kemi@example.com', location:'Rumuokoro, Port Harcourt', landmark:'Beside the roundabout'}
+];
+let nextId = 100;
+const P = PALETTE;
+let items = [
+  {id:1, sellerId:'amaka', cat:'Clothes', title:'Ankara shirt', price:8500, note:'All colors available', status:'available', colors:[P[0],P[1],P[2],P[3]]},
+  {id:2, sellerId:'amaka', cat:'Clothes', title:'Linen shirt', price:7000, note:'Sizes M to XXL', status:'available', colors:[P[8],P[6],P[5]]},
+  {id:3, sellerId:'amaka', cat:'Clothes', title:'Cargo trousers', price:12000, note:'Limited stock', status:'sold', colors:[P[7],P[5]]},
+  {id:4, sellerId:'boots', cat:'Boots', title:'Chelsea boots', price:25000, note:'Sizes 40 to 45', status:'available', colors:[P[5],P[7]]},
+  {id:5, sellerId:'boots', cat:'Boots', title:'Suede loafers', price:18000, note:'All colors available', status:'available', colors:[P[6],P[0],P[5]]},
+  {id:6, sellerId:'boots', cat:'Boots', title:'Work boots', price:22000, note:'', status:'available', colors:[P[7]]},
+  {id:7, sellerId:'gold', cat:'Necklaces and chains', title:'Cuban chain', price:15000, note:'Gold or silver', status:'available', colors:[P[9],P[8]]},
+  {id:8, sellerId:'gold', cat:'Necklaces and chains', title:'Pearl necklace', price:9000, note:'All colors available', status:'available', colors:[P[8],P[1],P[4]]},
+  {id:9, sellerId:'gold', cat:'Necklaces and chains', title:'Pendant chain', price:11500, note:'', status:'sold', colors:[P[9]]},
+  {id:10, sellerId:'fresh', cat:'Pomade and spray', title:'Body spray', price:3500, note:'All scents available', status:'available', colors:[P[0],P[2],P[4],P[1],P[3]]},
+  {id:11, sellerId:'fresh', cat:'Pomade and spray', title:'Hair spray', price:2800, note:'', status:'available', colors:[P[5]]},
+  {id:12, sellerId:'pomade', cat:'Pomade and spray', title:'Edge pomade', price:2000, note:'Strong hold', status:'available', colors:[P[3],P[5]]},
+  {id:13, sellerId:'pomade', cat:'Pomade and spray', title:'Beard pomade', price:2500, note:'', status:'available', colors:[P[7]]},
+  {id:14, sellerId:'mama', cat:'Clothes', title:'Kids Ankara dress', price:6500, note:'All sizes available', status:'available', colors:[P[1],P[3],P[2]]},
+  {id:15, sellerId:'mama', cat:'Other', title:'Ladies handbag', price:14000, note:'All colors available', status:'available', colors:[P[7],P[5],P[6],P[1]]},
+  {id:16, sellerId:'mama', cat:'Necklaces and chains', title:'Beaded necklace', price:4000, note:'', status:'sold', colors:[P[3],P[4]]},
+  {id:17, sellerId:'mama', cat:'Pomade and spray', title:'Perfume oil', price:5500, note:'Many scents', status:'available', colors:[P[4],P[0],P[2]]}
+];
+const hm = d => d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+let messages = [
+  {from:'admin', text:'Welcome to ShopLink! Your account is active. Message me here if you need anything.', t:'10:02'},
+  {from:'seller', text:'Thanks! Please raise my picture limit when I need more.', t:'10:15'}
+];
+
+const ME = 'mama';
+const state = {role:'buyer', cat:'All', sellerTab:'items', sheet:null, pendingDelete:null, refocus:false, unread:0, tmp:{}};
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => '₦' + Number(n).toLocaleString('en-US');
+const sellerOf = id => sellers.find(s => s.id === id);
+const picsUsed = id => items.filter(i => i.sellerId === id).reduce((n,i) => n + i.colors.length, 0);
+const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : 'Not set';
+const addMonths = (d,n) => { const x = new Date(d); x.setMonth(x.getMonth()+n); return x; };
+function fg(hex){
+  const n = parseInt(hex.slice(1),16), r = n>>16, g = (n>>8)&255, b = n&255;
+  return (0.299*r + 0.587*g + 0.114*b) > 165 ? '#1E2347' : 'rgba(255,255,255,.92)';
+}
+const initialOf = t => (String(t).trim()[0] || '?').toUpperCase();
+function logoHtml(s, size, id){
+  const a = id ? ` id="${id}"` : '';
+  return s.logo ? `<img${a} class="logo ${size}" src="${s.logo}" alt="">`
+                : `<span${a} class="logo ${size}" style="background:${s.color};color:${fg(s.color)}">${esc(initialOf(s.name))}</span>`;
+}
+function photoHtml(s, size, id){
+  const a = id ? ` id="${id}"` : '';
+  return s.photo ? `<img${a} class="photo ${size}" src="${s.photo}" alt="">`
+                 : `<span${a} class="photo ${size}">${esc(initialOf(s.owner))}</span>`;
+}
+function tile(i, hex){
+  return `<div class="tile" style="background:${hex};color:${fg(hex)}"><svg viewBox="0 0 80 80" aria-hidden="true">${ICONS[KEY[i.cat]||'bag']}</svg></div>`;
+}
+function toast(msg){
+  const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role','status'); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2800);
+}
+const pillFor = s => s.status==='active' ? '<span class="pill ok">Active</span>' : s.status==='pending' ? '<span class="pill wait">Pending</span>' : '<span class="pill off">Suspended</span>';
+
+/* ---------- buyer: all shops, horizontal rows ---------- */
+function cardH(i){
+  const sold = i.status === 'sold';
+  const dots = i.colors.slice(0,5).map(c => `<span class="dot" style="background:${c}"></span>`).join('') + (i.colors.length>5 ? `<span class="more">+${i.colors.length-5}</span>` : '');
+  return `<article class="card h">
+    <div class="tile-wrap">${tile(i,i.colors[0])}${sold?'<span class="stamp">Sold</span>':''}</div>
+    <div class="swatches" aria-label="${i.colors.length} pictures">${dots}</div>
+    <h3>${esc(i.title)}</h3>
+    <p class="price">${money(i.price)}</p>
+    ${i.note ? `<span class="note">${esc(i.note)}</span>` : '<div style="height:.6rem"></div>'}
+    <button class="btn wa sm" data-act="order" data-v="${i.id}" ${sold?'disabled':''}>${sold?'Sold out':'Order on WhatsApp'}</button>
+  </article>`;
+}
+function renderBuyer(){
+  const chips = ['All',...CATS].map(c => `<button class="chip" aria-pressed="${state.cat===c}" data-act="cat" data-v="${c}">${c}</button>`).join('');
+  const rows = sellers.filter(s => s.status==='active').map(s => {
+    const list = items.filter(i => i.sellerId===s.id && (state.cat==='All' || i.cat===state.cat));
+    if(!list.length) return '';
+    return `<section class="shop">
+      <div class="shop-head"><div class="who">${logoHtml(s,'md')}<div><h2>${esc(s.name)}</h2><p class="muted">${esc(s.type)}, ${list.length} item${list.length>1?'s':''}</p><span class="owner">${photoHtml(s,'xs')}${esc(s.owner.split(' ')[0])}</span></div></div>
+      <div class="hbtns"><button class="info-link" data-act="shopinfo" data-v="${s.id}" aria-label="Shop info for ${esc(s.name)}">Info</button><button class="wa-link" data-act="shopchat" data-v="${s.id}" aria-label="Chat with ${esc(s.name)} on WhatsApp">Chat</button></div></div>
+      <div class="row">${list.map(cardH).join('')}</div></section>`;
+  }).join('');
+  return `<main class="wrap"><p class="lead">Swipe sideways through each shop. Tap Order to chat with the seller on WhatsApp.</p>
+    <div class="chips">${chips}</div>${rows || '<p class="empty">No items in this category yet.</p>'}</main>`;
+}
+
+/* ---------- seller: own items, vertical feed ---------- */
+function cardV(i, active){
+  const sold = i.status === 'sold';
+  const pics = i.colors.map((c,k) => `<div class="pic">${tile(i,c)}<span class="count">${k+1} of ${i.colors.length}</span></div>`).join('');
+  const confirming = state.pendingDelete === i.id;
+  return `<article class="card v">
+    <div class="tile-wrap"><div class="pics">${pics}</div>${sold?'<span class="stamp">Sold</span>':''}</div>
+    <div class="body">
+      <h3>${esc(i.title)}</h3>
+      <p class="price">${money(i.price)}</p>
+      ${i.note ? `<span class="note">${esc(i.note)}</span>` : ''}
+      <div class="actions">
+        <button class="btn ghost sm" data-act="sold" data-v="${i.id}" ${active?'':'disabled'}>${sold?'Mark as available':'Mark as sold'}</button>
+        <button class="btn danger sm" data-act="del" data-v="${i.id}">${confirming?'Tap again to delete':'Delete'}</button>
+      </div>
+    </div></article>`;
+}
+function thread(list, mineFrom){
+  const b = list.map(m => `<div class="bubble ${m.from===mineFrom?'me':'them'}">${esc(m.text)}<small>${m.t}</small></div>`).join('');
+  return `<div class="thread" id="thread">${b}</div>`;
+}
+function renderSeller(){
+  const s = sellerOf(ME), used = picsUsed(ME), active = s.status === 'active';
+  const pct = Math.min(100, Math.round(used / s.limit * 100));
+  const mine = items.filter(i => i.sellerId === ME);
+  let body;
+  if(state.sellerTab === 'items'){
+    body = `<button class="btn" data-act="openAdd" ${active?'':'disabled'}>Add item</button>
+      <div class="feed">${mine.map(i => cardV(i, active)).join('') || '<p class="empty">You have no items yet. Tap Add item to post your first one.</p>'}</div>`;
+  } else {
+    state.unread = 0;
+    body = `${thread(messages,'seller')}
+      <form class="send" data-form="seller-msg"><input class="chat-input" name="text" placeholder="Write to the admin" autocomplete="off" aria-label="Message to admin" required><button class="btn" type="submit">Send</button></form>`;
+  }
+  return `<main class="wrap">
+    <section class="acct">
+      <div class="acct-top"><div class="who2">${logoHtml(s,'md')}<div><h2>${esc(s.name)}</h2><p class="muted">${esc(s.type)}</p></div></div>${pillFor(s)}</div>
+      <p style="margin:.8rem 0 0;font-weight:600">${active ? 'Active until ' + fmtDate(s.exp) : 'Account not active'}</p>
+      <div class="meter" role="progressbar" aria-valuenow="${used}" aria-valuemin="0" aria-valuemax="${s.limit}"><div style="width:${pct}%"></div></div>
+      <p class="muted">${used} of ${s.limit} pictures used</p>
+      <div class="person">${photoHtml(s,'sm')}<div><b>${esc(s.owner)}</b><span class="muted">shoplink/${s.slug}</span></div><button class="btn ghost sm" data-act="openProfile">Edit profile</button></div>
+    </section>
+    ${active ? '' : '<p class="warn">Your account is not active. You can still delete items and message the admin.</p>'}
+    <div class="subtabs" role="tablist">
+      <button role="tab" aria-selected="${state.sellerTab==='items'}" data-act="stab" data-v="items">My items</button>
+      <button role="tab" aria-selected="${state.sellerTab==='chat'}" data-act="stab" data-v="chat">Message admin</button>
+    </div>${body}</main>`;
+}
+
+/* ---------- admin ---------- */
+function renderAdmin(){
+  const list = sellers.map(s => {
+    const used = picsUsed(s.id);
+    const btns = s.status==='pending'
+      ? `<button class="btn sm" data-act="activate" data-v="${s.id}" data-m="6">Activate 6 months</button><button class="btn sm" data-act="activate" data-v="${s.id}" data-m="12">Activate 1 year</button>`
+      : s.status==='active'
+      ? `<button class="btn ghost sm" data-act="activate" data-v="${s.id}" data-m="6">Extend 6 months</button><button class="btn danger sm" data-act="suspend" data-v="${s.id}">Suspend</button>`
+      : `<button class="btn sm full" data-act="activate" data-v="${s.id}" data-m="6">Reactivate for 6 months</button>`;
+    return `<article class="seller">
+      <div class="acct-top"><div class="who2">${logoHtml(s,'sm')}<div><h3>${esc(s.name)}</h3><p class="muted">${esc(s.type)}</p></div></div>${pillFor(s)}</div>
+      <dl><dt>Owner</dt><dd><span class="owner" style="margin:0;color:inherit">${photoHtml(s,'xs')}${esc(s.owner)}</span></dd><dt>WhatsApp</dt><dd>${esc(s.phone)}</dd><dt>Email</dt><dd>${esc(s.email)}</dd><dt>Location</dt><dd>${esc(s.location)}</dd><dt>Landmark</dt><dd>${esc(s.landmark)}</dd><dt>Pictures</dt><dd>${used} of ${s.limit}</dd><dt>Expires</dt><dd>${fmtDate(s.exp)}</dd></dl>
+      <div class="btns">${btns}<button class="btn ghost sm full" data-act="viewItems" data-v="${s.id}">View items (${items.filter(i=>i.sellerId===s.id).length})</button></div>
+    </article>`;
+  }).join('');
+  return `<main class="wrap"><p class="lead">Every seller who registers appears here as Pending until you activate them.</p>
+    <div class="sellers">${list}</div>
+    <h2 class="sec">Categories</h2>
+    <p class="muted" style="margin-top:.3rem">Sellers pick from this list when they post an item. Add a new one when sellers need it.</p>
+    <div class="cats">${CATS.map(c => `<span class="cat-tag">${esc(c)}</span>`).join('')}</div>
+    <form class="addcat" data-form="cat"><input name="name" placeholder="New category, e.g. Bags" maxlength="30" aria-label="New category" required><button class="btn" type="submit">Add</button></form>
+    <h2 class="sec">Messages from ${esc(sellerOf(ME).name)}</h2>
+    <div style="margin-top:.8rem">${thread(messages,'admin')}
+    <form class="send" data-form="admin-msg"><input class="chat-input" name="text" placeholder="Reply to ${esc(sellerOf(ME).name)}" autocomplete="off" aria-label="Reply to seller" required><button class="btn" type="submit">Send</button></form></div></main>`;
+}
+
+/* ---------- sheets ---------- */
+function renderSheet(){
+  const sh = state.sheet; if(!sh) return '';
+  if(sh.type === 'add'){
+    const s = sellerOf(ME), left = s.limit - picsUsed(ME);
+    return `<div class="scrim" data-act="closeSheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="Add item"><div class="sheet-head"><h2>Add item</h2><button class="x" data-act="closeSheet" aria-label="Close">×</button></div>
+    <form data-form="add">
+      <label>Item name<input name="title" required maxlength="60" placeholder="e.g. Ankara shirt"></label>
+      <label>Price<input name="price" type="number" min="0" inputmode="numeric" required placeholder="e.g. 8500"></label>
+      <label>Category<select name="cat">${CATS.map(c=>`<option>${c}</option>`).join('')}</select></label>
+      <label>Note under the post<input name="note" maxlength="80" placeholder="e.g. All colors available"></label>
+      <label>Pictures (one for each colour)<select name="n">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option>${n}</option>`).join('')}</select></label>
+      <p class="muted">You have ${left} pictures left.</p>
+      <p class="err" id="sheet-err" role="alert"></p>
+      <button class="btn" type="submit">Post item</button>
+    </form></div></div>`;
+  }
+  if(sh.type === 'items'){
+    const s = sellerOf(sh.id), list = items.filter(i => i.sellerId === sh.id);
+    return `<div class="scrim" data-act="closeSheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="Items"><div class="sheet-head"><h2>${esc(s.name)}</h2><button class="x" data-act="closeSheet" aria-label="Close">×</button></div>
+    ${list.map(i => `<div class="mini"><div><b>${esc(i.title)}</b><span class="muted">${money(i.price)} · ${i.colors.length} picture${i.colors.length>1?'s':''}${i.status==='sold'?' · Sold':''}</span></div><button class="btn danger sm" data-act="adminDel" data-v="${i.id}">Delete</button></div>`).join('') || '<p class="empty">No items posted yet.</p>'}
+    </div></div>`;
+  }
+  if(sh.type === 'shopinfo'){
+    const s = sellerOf(sh.id);
+    return `<div class="scrim" data-act="closeSheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="Shop info"><div class="sheet-head"><h2>Shop info</h2><button class="x" data-act="closeSheet" aria-label="Close">×</button></div>
+    <div class="idcard">${logoHtml(s,'lg')}<div><h3>${esc(s.name)}</h3><p class="muted">${esc(s.type)}</p></div></div>
+    <div class="idcard">${photoHtml(s,'lg')}<div><h3>${esc(s.owner)}</h3><p class="muted">Shop owner</p></div></div>
+    <dl class="info">
+      <dt>WhatsApp</dt><dd>${esc(s.phone)}</dd>
+      <dt>Email</dt><dd><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></dd>
+      <dt>Location</dt><dd>${esc(s.location)}</dd>
+      <dt>Nearest landmark</dt><dd>${esc(s.landmark)}</dd>
+    </dl>
+    <button class="btn wa" data-act="shopchat" data-v="${s.id}">Chat on WhatsApp</button></div></div>`;
+  }
+  if(sh.type === 'profile'){
+    const s = sellerOf(ME);
+    return `<div class="scrim" data-act="closeSheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="Edit profile"><div class="sheet-head"><h2>Edit profile</h2><button class="x" data-act="closeSheet" aria-label="Close">×</button></div>
+    <form data-form="profile">
+      <div><b>Your profile picture</b><p class="muted">A photo of you. It shows next to your name.</p>
+        <div class="pick">${photoHtml(s,'lg','pv-photo')}<input type="file" accept="image/*" data-file="photo" aria-label="Choose profile picture"></div></div>
+      <div><b>Shop logo</b><p class="muted">The logo of your business. It shows at the top of your shop.</p>
+        <div class="pick">${logoHtml(s,'lg','pv-logo')}<input type="file" accept="image/*" data-file="logo" aria-label="Choose shop logo"></div></div>
+      <label>WhatsApp number<input name="phone" required inputmode="tel" value="${esc(s.phone)}"></label>
+      <label>Email<input name="email" type="email" required value="${esc(s.email)}"></label>
+      <label>Location<input name="location" required maxlength="80" value="${esc(s.location)}" placeholder="e.g. Ikeja, Lagos"></label>
+      <label>Nearest landmark<input name="landmark" maxlength="80" value="${esc(s.landmark)}" placeholder="e.g. Opposite City Mall"></label>
+      <label>Shop type<select name="type">${['General store',...CATS].map(c => `<option${c===s.type?' selected':''}>${esc(c)}</option>`).join('')}</select></label>
+      <p class="muted">Buyers can see your logo, photo, WhatsApp number, email, location and landmark.</p>
+      <button class="btn" type="submit">Save profile</button>
+    </form></div></div>`;
+  }
+  return '';
+}
+
+/* ---------- render ---------- */
+function render(){
+  const seg = [['buyer','Buyer'],['seller','Seller'],['admin','Admin']];
+  $('seg').innerHTML = seg.map(([k,l]) => {
+    const badge = k==='admin' && sellers.some(s=>s.status==='pending') ? `<span class="badge">${sellers.filter(s=>s.status==='pending').length}</span>` : (k==='seller' && state.unread ? `<span class="badge">${state.unread}</span>` : '');
+    return `<button role="tab" aria-selected="${state.role===k}" data-act="role" data-v="${k}">${l}${badge}</button>`;
+  }).join('');
+  $('app').innerHTML = state.role==='buyer' ? renderBuyer() : state.role==='seller' ? renderSeller() : renderAdmin();
+  $('overlay').innerHTML = renderSheet();
+  const th = $('thread'); if(th) th.scrollTop = th.scrollHeight;
+  if(state.refocus){ const inp = document.querySelector('.chat-input'); if(inp) inp.focus(); state.refocus = false; }
+}
+
+/* ---------- actions ---------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if(!el) return;
+  if(el.classList.contains('scrim') && e.target !== el) return;
+  const act = el.dataset.act, v = el.dataset.v;
+  const id = Number(v);
+  if(act==='role'){ state.role = v; state.sheet = null; state.pendingDelete = null; render(); window.scrollTo(0,0); }
+  else if(act==='cat'){ state.cat = v; render(); }
+  else if(act==='order'){ const i = items.find(x=>x.id===id); toast(`Opens WhatsApp with: "Hi, I'd like to order the ${i.title} - ${money(i.price)}"`); }
+  else if(act==='shopchat'){ toast('Opens a WhatsApp chat with ' + sellerOf(v).name); }
+  else if(act==='stab'){ state.sellerTab = v; render(); }
+  else if(act==='sold'){ const i = items.find(x=>x.id===id); i.status = i.status==='sold' ? 'available' : 'sold'; render(); toast(i.status==='sold' ? 'Marked as sold' : 'Marked as available'); }
+  else if(act==='del'){
+    if(state.pendingDelete === id){ items = items.filter(x=>x.id!==id); state.pendingDelete = null; render(); toast('Item deleted. Pictures freed up.'); }
+    else { state.pendingDelete = id; render(); setTimeout(() => { if(state.pendingDelete===id){ state.pendingDelete = null; render(); } }, 3500); }
+  }
+  else if(act==='openAdd'){ state.sheet = {type:'add'}; render(); }
+  else if(act==='shopinfo'){ state.sheet = {type:'shopinfo', id:v}; render(); }
+  else if(act==='openProfile'){ state.tmp = {}; state.sheet = {type:'profile'}; render(); }
+  else if(act==='closeSheet'){ state.sheet = null; render(); }
+  else if(act==='activate'){
+    const s = sellerOf(v), m = Number(el.dataset.m);
+    const base = s.exp && new Date(s.exp) > TODAY && s.status==='active' ? new Date(s.exp) : TODAY;
+    s.exp = addMonths(base, m).toISOString(); s.status = 'active'; render();
+    toast(`${s.name} is active until ${fmtDate(s.exp)}`);
+  }
+  else if(act==='suspend'){ sellerOf(v).status = 'suspended'; render(); toast(sellerOf(v).name + ' suspended. Their shop is hidden from buyers.'); }
+  else if(act==='viewItems'){ state.sheet = {type:'items', id:v}; render(); }
+  else if(act==='adminDel'){ items = items.filter(x=>x.id!==id); render(); toast('Item removed'); }
+});
+
+document.addEventListener('change', e => {
+  const inp = e.target.closest('[data-file]'); if(!inp || !inp.files[0]) return;
+  const kind = inp.dataset.file, url = URL.createObjectURL(inp.files[0]);
+  state.tmp[kind] = url;
+  const el = $('pv-' + kind);
+  if(el) el.outerHTML = `<img id="pv-${kind}" class="${kind==='photo'?'photo':'logo'} lg" src="${url}" alt="Preview">`;
+});
+
+document.addEventListener('submit', e => {
+  const form = e.target.closest('[data-form]'); if(!form) return;
+  e.preventDefault();
+  const f = new FormData(form), kind = form.dataset.form;
+  if(kind==='add'){
+    const s = sellerOf(ME), n = Number(f.get('n')), left = s.limit - picsUsed(ME), err = $('sheet-err');
+    if(n > left){ err.textContent = `Picture limit reached. You have ${left} pictures left of ${s.limit}. Delete sold items to free up space.`; return; }
+    const colors = Array.from({length:n}, (_,k) => PALETTE[k % PALETTE.length]);
+    items.unshift({id:nextId++, sellerId:ME, cat:f.get('cat'), title:String(f.get('title')).trim(), price:Number(f.get('price')), note:String(f.get('note')).trim(), status:'available', colors});
+    state.sheet = null; render(); toast('Item posted');
+  } else if(kind==='profile'){
+    const s = sellerOf(ME);
+    if(state.tmp.photo) s.photo = state.tmp.photo;
+    if(state.tmp.logo) s.logo = state.tmp.logo;
+    s.type = f.get('type'); s.phone = String(f.get('phone')).trim(); s.email = String(f.get('email')).trim(); s.location = String(f.get('location')).trim(); s.landmark = String(f.get('landmark')).trim();
+    state.sheet = null; render(); toast('Profile saved');
+  } else if(kind==='cat'){
+    const name = String(f.get('name')).trim(); if(!name) return;
+    if(CATS.some(c => c.toLowerCase() === name.toLowerCase())){ toast('That category already exists'); return; }
+    CATS.splice(CATS.length - 1, 0, name); render(); toast(name + ' added. Sellers can use it now.');
+  } else if(kind==='seller-msg' || kind==='admin-msg'){
+    const text = String(f.get('text')).trim(); if(!text) return;
+    messages.push({from: kind==='seller-msg' ? 'seller' : 'admin', text, t: hm(new Date())});
+    state.refocus = true; render();
+  }
+});
+render();
+</script>
+</body>
+</html>
