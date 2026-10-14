@@ -1,5 +1,5 @@
 const CACHE = "shoplink-v1";
-const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "logo.svg", "manifest.json"];
+const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "logo-2.svg", "manifest.json"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
