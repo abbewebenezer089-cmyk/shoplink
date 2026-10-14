@@ -49,17 +49,33 @@ formIn.addEventListener("submit", (e) => {
   });
 });
 
+/* ----- country and WhatsApp number ----- */
+const countrySel = $("country"), dialEl = $("dial"), phoneHint = $("phone-hint");
+if (window.SL) {
+  countrySel.innerHTML = SL.optionsHtml("");
+  const guess = SL.byIso(SL.guess());
+  if (guess) countrySel.value = guess.name;
+}
+function syncCountry() {
+  const c = window.SL ? SL.byName(countrySel.value) : null;
+  dialEl.textContent = "+" + (c ? c.dial : "");
+  phoneHint.textContent = c ? "Type your number without the country code." : "Include your country code in the number.";
+}
+countrySel.addEventListener("change", syncCountry);
+syncCountry();
+
 /* ----- create account ----- */
 formUp.addEventListener("submit", (e) => {
   e.preventDefault();
   const f = new FormData(formUp);
-  const whatsapp = String(f.get("whatsapp")).replace(/\D/g, "");
-  if (whatsapp.length < 8) return say($("msg-up"), "Enter your WhatsApp number with the country code.", "error");
+  const c = SL.byName(f.get("country"));
+  const whatsapp = SL.join(c ? c.dial : "", f.get("whatsapp"));
+  if (whatsapp.length < 8) return say($("msg-up"), "Check your WhatsApp number and country.", "error");
   run(formUp, $("msg-up"), async () => {
     const { error } = await sb.auth.signUp({
       email: f.get("email").trim(),
       password: f.get("password"),
-      options: { data: { full_name: f.get("full_name").trim(), shop_name: f.get("shop_name").trim(), whatsapp } }
+      options: { data: { full_name: f.get("full_name").trim(), shop_name: f.get("shop_name").trim(), whatsapp, country: String(f.get("country")), currency: c ? c.cur : "" } }
     });
     if (error) throw error;
     formUp.reset();

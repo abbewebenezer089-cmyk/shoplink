@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShopLink - Shops</title>
+<meta name="description" content="Browse shops and order straight on WhatsApp.">
+<meta name="theme-color" content="#1E2347">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Hanken+Grotesk:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1E2347;--ink-soft:#4A5078;--paper:#F6F7FB;--card:#fff;--marigold:#F5B82E;--marigold-soft:#FDF1D3;--chili:#D93A2B;--wa:#1C9C57;--line:#D9DCEA;--display:"Bricolage Grotesque",system-ui,sans-serif;--body:"Hanken Grotesk",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:1rem;line-height:1.5;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--marigold);outline-offset:2px}
+.wrap{width:min(100% - 2.5rem,34rem);margin-inline:auto;padding-bottom:4rem}
+.muted{color:var(--ink-soft);margin:0;font-size:.9rem}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.01em;margin:0}
+.lead{color:var(--ink-soft);margin:1.2rem 0 1rem}
+.empty{color:var(--ink-soft);text-align:center;padding:2.5rem 0}
+
+.bar{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:2px solid var(--line);padding:.8rem 0}
+.bar .wrap{padding-bottom:0;display:flex;align-items:center;gap:.6rem}
+.bar img{width:2rem;height:2rem}
+.brand{font-family:var(--display);font-weight:800;font-size:1.25rem;text-decoration:none}
+.sell{margin-left:auto;font-weight:700;font-size:.88rem;border:2px solid var(--ink);border-radius:99px;padding:.4rem .9rem;text-decoration:none;min-height:2.5rem;display:inline-flex;align-items:center}
+
+.chips{display:flex;gap:.5rem;overflow-x:auto;margin:0 -1.25rem 1.25rem;padding:.2rem 1.25rem;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:2px solid var(--line);background:#fff;border-radius:99px;padding:.5rem .95rem;font-weight:700;font-size:.92rem;min-height:2.5rem}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+
+.shop{margin-bottom:1.75rem}
+.shop-head{display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;margin-bottom:.7rem}
+.who{display:flex;gap:.8rem;align-items:center;min-width:0;flex:1 1 13rem}
+.shop-head h2{font-size:1.3rem;overflow-wrap:anywhere}
+.owner{display:flex;align-items:center;gap:.4rem;font-size:.85rem;color:var(--ink-soft);margin-top:.2rem}
+.hbtns{display:flex;gap:.45rem;flex:none}
+.pillbtn{display:inline-flex;align-items:center;border:2px solid var(--ink);background:#fff;color:var(--ink);font-weight:800;border-radius:99px;padding:.4rem .85rem;font-size:.88rem;min-height:2.5rem;text-decoration:none}
+.pillbtn.wa{border-color:var(--wa);color:var(--wa)}
+.row{display:flex;gap:.85rem;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -1.25rem;padding:.2rem 1.25rem 1rem;scrollbar-width:none}
+.row::-webkit-scrollbar{display:none}
+
+.card.h{flex:0 0 11.5rem;scroll-snap-align:start;padding:.65rem;background:var(--card);border:2px solid var(--line);border-radius:1rem;cursor:pointer}
+.card.h h3{font-size:1.05rem;margin:.55rem 0 .1rem}
+.tile-wrap{position:relative;border-radius:.7rem;overflow:hidden;background:#E7E9F3}
+.card.h .tile-wrap{aspect-ratio:1}
+.tile-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.count{position:absolute;right:.5rem;bottom:.5rem;background:rgba(30,35,71,.85);color:#fff;font-size:.78rem;font-weight:700;padding:.1rem .5rem;border-radius:99px;pointer-events:none}
+.stamp{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-12deg);border:3px solid var(--chili);color:var(--chili);background:rgba(255,255,255,.92);font-family:var(--display);font-weight:800;font-size:1.2rem;padding:.1rem .7rem;border-radius:.4rem;pointer-events:none}
+.price{margin:0;font-weight:800}
+.note{display:inline-block;margin:.45rem 0 .6rem;background:var(--marigold-soft);padding:.2rem .6rem;border-radius:.5rem;font-size:.82rem;font-weight:600}
+.btn{display:block;width:100%;text-align:center;text-decoration:none;border:2px solid var(--wa);background:var(--wa);color:#fff;font-weight:800;border-radius:.8rem;min-height:2.6rem;padding:.55rem .8rem;font-size:.92rem}
+.btn.off{background:#E7E9F3;border-color:#E7E9F3;color:var(--ink-soft);pointer-events:none}
+.btn.lg{min-height:3rem;font-size:1rem}
+.gap{height:.6rem}
+
+.logo,.photo{flex:none;display:grid;place-items:center;overflow:hidden;font-family:var(--display);font-weight:800}
+img.logo,img.photo{display:block;object-fit:cover}
+.logo{border-radius:.8rem;background:var(--ink);color:var(--paper)}
+.logo.xs{width:1.6rem;height:1.6rem;border-radius:.4rem;font-size:.8rem}
+.logo.md{width:3.25rem;height:3.25rem;font-size:1.4rem}
+.logo.lg{width:4.5rem;height:4.5rem;font-size:1.8rem;border-radius:1rem}
+.photo{border-radius:50%;background:#E7E9F3;color:var(--ink)}
+.photo.xs{width:1.5rem;height:1.5rem;font-size:.7rem}
+.photo.lg{width:4.5rem;height:4.5rem;font-size:1.6rem}
+
+.scrim{position:fixed;inset:0;background:rgba(30,35,71,.55);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--paper);width:min(100%,34rem);max-height:90vh;overflow-y:auto;border-radius:1.25rem 1.25rem 0 0;padding:1.25rem 1.25rem 1.75rem}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.sheet-head h2{font-size:1.35rem}
+.x{border:0;background:#E7E9F3;border-radius:50%;width:2.6rem;height:2.6rem;font-size:1.2rem}
+.idcard{display:flex;gap:.9rem;align-items:center;margin-bottom:.9rem}
+.idcard h3{font-size:1.2rem}
+.info{display:grid;grid-template-columns:auto 1fr;gap:.7rem 1rem;margin:1rem 0 1.25rem;padding-top:1rem;border-top:2px solid var(--line)}
+.info dt{color:var(--ink-soft);font-weight:600}
+.info dd{margin:0;font-weight:700;overflow-wrap:anywhere}
+.pics{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;border-radius:.9rem;margin-bottom:.9rem}
+.pics::-webkit-scrollbar{display:none}
+.pic{position:relative;flex:0 0 100%;scroll-snap-align:start;aspect-ratio:4/5;background:#E7E9F3}
+.pic img,.pic video{width:100%;height:100%;object-fit:cover;display:block}
+.sheet h3.t{font-size:1.4rem}
+.err{background:#FCE6E3;color:#8E1F14;border-radius:.7rem;padding:.75rem .9rem;font-weight:600;margin:1.2rem 0}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="wrap">
+    <img src="logo.svg" alt="">
+    <a class="brand" href="shops.html">ShopLink</a>
+    <a class="sell" href="index.html">Sell on ShopLink</a>
+  </div>
+</header>
+<div id="app"><p class="empty">Loading shops...</p></div>
+<div id="overlay"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+const cfg = window.SHOPLINK_CONFIG || {};
+const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DEFAULT_CUR = cfg.CURRENCY || '';
+const CC = cfg.COUNTRY_CODE || '';
+const curOf = (s) => (s && s.currency) || DEFAULT_CUR;
+const money = (n, cur) => (n == null || n === '') ? '' : (cur ? cur + ' ' : '') + Number(n).toLocaleString('en-US');
+const mediaUrl = (p) => sb.storage.from('media').getPublicUrl(p).data.publicUrl;
+const initial = (t) => (String(t || '').trim()[0] || '?').toUpperCase();
+// numbers saved with a country are already complete; older ones may need the country code added
+function waNumber(raw, country) {
+  let d = String(raw || '').replace(/\D/g, '');
+  if (country) return d;
+  if (d.startsWith('00')) d = d.slice(2); else if (d.startsWith('0') && CC) d = CC + d.slice(1);
+  return d;
+}
+const sortMedia = (i) => (i.item_media || []).slice().sort((a, b) => a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0);
+const shopUrl = (s) => location.origin + location.pathname.replace(/[^/]*$/, '') + 'shops.html?shop=' + encodeURIComponent(s.shop_slug);
+const logoHtml = (s, size) => s.logo_path ? `<img class="logo ${size}" src="${esc(mediaUrl(s.logo_path))}" alt="">` : `<span class="logo ${size}">${esc(initial(s.shop_name))}</span>`;
+const photoHtml = (s, size) => s.photo_path ? `<img class="photo ${size}" src="${esc(mediaUrl(s.photo_path))}" alt="">` : `<span class="photo ${size}">${esc(initial(s.owner_name))}</span>`;
+
+const only = new URLSearchParams(location.search).get('shop');
+const state = {shops:[], cats:[], items:[], cat:'all', sheet:null};
+
+async function ok(promise) {
+  const { data, error } = await promise;
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+function orderLink(i, s) {
+  const msg = `Hi, I'd like to order the ${i.title}${i.price != null ? ' (' + money(i.price, curOf(s)) + ')' : ''} from ${s.shop_name} on ShopLink.\n${shopUrl(s)}`;
+  return 'https://wa.me/' + waNumber(s.whatsapp, s.country) + '?text=' + encodeURIComponent(msg);
+}
+
+function card(i, s) {
+  const media = sortMedia(i), first = media.find((m) => m.kind === 'image') || media[0], sold = i.status === 'sold';
+  return `<article class="card h" data-act="item" data-v="${i.id}">
+    <div class="tile-wrap">${first ? `<img src="${esc(mediaUrl(first.path))}" alt="${esc(i.title)}" loading="lazy">` : ''}${media.length > 1 ? `<span class="count">+${media.length - 1}</span>` : ''}${sold ? '<span class="stamp">Sold</span>' : ''}</div>
+    <h3>${esc(i.title)}</h3>${i.price != null ? `<p class="price">${esc(money(i.price, curOf(s)))}</p>` : ''}
+    ${i.note ? `<span class="note">${esc(i.note)}</span>` : '<div class="gap"></div>'}
+    ${sold ? '<span class="btn off">Sold out</span>' : `<a class="btn" target="_blank" rel="noopener" href="${esc(orderLink(i, s))}">Order on WhatsApp</a>`}
+  </article>`;
+}
+
+function render() {
+  const byShop = {};
+  state.items.forEach((i) => { (byShop[i.seller_id] || (byShop[i.seller_id] = [])).push(i); });
+  let shops = state.shops.slice();
+  if (only) shops = shops.filter((s) => s.shop_slug === only);
+  // newest activity first
+  const newest = (s) => (byShop[s.id] && byShop[s.id][0]) ? byShop[s.id][0].created_at : '';
+  shops.sort((a, b) => newest(a) < newest(b) ? 1 : -1);
+
+  const chips = [['all', 'All']].concat(state.cats.map((c) => [c.id, c.name])).map(([id, name]) =>
+    `<button class="chip" aria-pressed="${state.cat === id}" data-act="cat" data-v="${id}">${esc(name)}</button>`).join('');
+
+  const rows = shops.map((s) => {
+    const list = (byShop[s.id] || []).filter((i) => state.cat === 'all' || i.category_id === state.cat);
+    if (!list.length && !only) return '';
+    return `<section class="shop"><div class="shop-head"><div class="who">${logoHtml(s, 'md')}<div><h2>${esc(s.shop_name)}</h2><p class="muted">${esc(s.shop_type)}, ${list.length} item${list.length === 1 ? '' : 's'}</p><span class="owner">${photoHtml(s, 'xs')}${esc(String(s.owner_name || '').split(' ')[0])}</span></div></div>
+      <div class="hbtns"><button class="pillbtn" data-act="info" data-v="${s.id}" aria-label="Shop info for ${esc(s.shop_name)}">Info</button><a class="pillbtn wa" target="_blank" rel="noopener" href="https://wa.me/${waNumber(s.whatsapp, s.country)}" aria-label="Chat with ${esc(s.shop_name)} on WhatsApp">Chat</a></div></div>
+      ${list.length ? `<div class="row">${list.map((i) => card(i, s)).join('')}</div>` : '<p class="muted">No items in this category yet.</p>'}</section>`;
+  }).join('');
+
+  let body;
+  if (only && !shops.length) body = '<p class="empty">This shop is not available right now.</p><p style="text-align:center"><a href="shops.html"><b>See all shops</b></a></p>';
+  else body = rows || '<p class="empty">No items in this category yet.</p>';
+  $('app').innerHTML = `<main class="wrap"><p class="lead">${only ? '<a href="shops.html"><b>‹ All shops</b></a>' : 'Swipe sideways through each shop. Tap Order to chat with the seller on WhatsApp.'}</p><div class="chips">${chips}</div>${body}</main>`;
+  $('overlay').innerHTML = sheet();
+}
+
+function sheet() {
+  const sh = state.sheet; if (!sh) return '';
+  if (sh.type === 'info') {
+    const s = state.shops.find((x) => x.id === sh.id);
+    return `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Shop info"><div class="sheet-head"><h2>Shop info</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
+    <div class="idcard">${logoHtml(s, 'lg')}<div><h3>${esc(s.shop_name)}</h3><p class="muted">${esc(s.shop_type)}</p></div></div>
+    <div class="idcard">${photoHtml(s, 'lg')}<div><h3>${esc(s.owner_name)}</h3><p class="muted">Shop owner</p></div></div>
+    <dl class="info"><dt>WhatsApp</dt><dd>+${esc(waNumber(s.whatsapp, s.country))}</dd>
+      ${s.email ? `<dt>Email</dt><dd><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></dd>` : ''}
+      ${s.location ? `<dt>Location</dt><dd>${esc(s.location)}</dd>` : ''}
+      ${s.landmark ? `<dt>Nearest landmark</dt><dd>${esc(s.landmark)}</dd>` : ''}</dl>
+    <a class="btn lg" target="_blank" rel="noopener" href="https://wa.me/${waNumber(s.whatsapp, s.country)}">Chat on WhatsApp</a></div></div>`;
+  }
+  if (sh.type === 'item') {
+    const i = state.items.find((x) => x.id === sh.id), s = state.shops.find((x) => x.id === i.seller_id), media = sortMedia(i), sold = i.status === 'sold';
+    const cat = state.cats.find((c) => c.id === i.category_id);
+    const pics = media.map((m, k) => `<div class="pic">${m.kind === 'video'
+      ? `<video src="${esc(mediaUrl(m.path))}" controls playsinline preload="metadata"></video>`
+      : `<img src="${esc(mediaUrl(m.path))}" alt="${esc(i.title)}">`}<span class="count">${k + 1} of ${media.length}</span>${sold ? '<span class="stamp">Sold</span>' : ''}</div>`).join('');
+    return `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(i.title)}"><div class="sheet-head"><span class="muted">${esc(s.shop_name)}</span><button class="x" data-act="close" aria-label="Close">×</button></div>
+    <div class="pics">${pics}</div>
+    <h3 class="t">${esc(i.title)}</h3><p class="muted">${esc(cat ? cat.name : '')}</p>
+    ${i.price != null ? `<p class="price" style="font-size:1.2rem;margin-top:.3rem">${esc(money(i.price, curOf(s)))}</p>` : ''}${i.note ? `<span class="note">${esc(i.note)}</span>` : ''}
+    <div style="margin-top:.9rem">${sold ? '<span class="btn off lg">Sold out</span>' : `<a class="btn lg" target="_blank" rel="noopener" href="${esc(orderLink(i, s))}">Order on WhatsApp</a>`}</div></div></div>`;
+  }
+  return '';
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('a[href]')) return;
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  if (el.classList.contains('scrim') && e.target !== el) return;
+  const act = el.dataset.act, v = el.dataset.v;
+  if (act === 'cat') { state.cat = v; render(); }
+  else if (act === 'info') { state.sheet = {type: 'info', id: v}; render(); }
+  else if (act === 'item') { state.sheet = {type: 'item', id: v}; render(); }
+  else if (act === 'close') { state.sheet = null; render(); }
+});
+
+(async function boot() {
+  try {
+    const [shops, cats, items] = await Promise.all([
+      ok(sb.from('shops').select('*')),
+      ok(sb.from('categories').select('*').order('sort')),
+      ok(sb.from('items').select('id,seller_id,title,price,note,status,category_id,created_at,item_media(id,kind,path,created_at)').order('created_at', {ascending: false}))
+    ]);
+    state.shops = shops; state.cats = cats; state.items = items;
+    render();
+  } catch (err) {
+    $('app').innerHTML = `<main class="wrap"><p class="err">${esc(err.message || err)}</p><button class="btn" onclick="location.reload()">Try again</button></main>`;
+  }
+})();
+</script>
+</body>
+</html>
