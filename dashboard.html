@@ -106,7 +106,12 @@ img.logo,img.photo{display:block;object-fit:cover}
 .logo.md{width:3.25rem;height:3.25rem;font-size:1.4rem}
 .logo.lg{width:4.5rem;height:4.5rem;font-size:1.8rem;border-radius:1rem}
 .photo{border-radius:50%;background:#E7E9F3;color:var(--ink)}
+img.photo{object-position:center 25%}
+.photo.md{width:4.5rem;height:4.5rem;font-size:1.7rem}
 .photo.lg{width:4.5rem;height:4.5rem;font-size:1.6rem}
+.photo.xl{width:7rem;height:7rem;font-size:2.6rem}
+.avatar{position:relative;flex:none}
+.logo.badge{position:absolute;right:-.3rem;bottom:-.3rem;width:2.1rem;height:2.1rem;border:2px solid #fff;border-radius:.6rem;font-size:.9rem}
 .who2{display:flex;gap:.8rem;align-items:center;min-width:0}
 .meter{height:.6rem;background:#E7E9F3;border-radius:99px;margin:.9rem 0 .35rem;overflow:hidden}
 .meter div{height:100%;background:var(--ink);border-radius:99px}
@@ -290,7 +295,7 @@ function renderSellers() {
       ? `<button class="btn ghost sm" data-act="activate" data-v="${s.id}" data-m="6">Extend 6 months</button><button class="btn danger sm" data-act="suspend" data-v="${s.id}">Suspend</button>`
       : `<button class="btn sm" data-act="activate" data-v="${s.id}" data-m="6">${label} 6 months</button><button class="btn sm" data-act="activate" data-v="${s.id}" data-m="12">${label} 1 year</button>`;
     return `<article class="seller">
-      <div class="acct-top"><div class="who2">${logoHtml(s, 'sm')}<div><h3>${esc(s.shop_name)}</h3><p class="muted">${esc(s.shop_type)}</p></div></div>${pill(s)}</div>
+      <div class="acct-top"><div class="who2"><div class="avatar">${photoHtml(s, 'md')}${logoHtml(s, 'badge')}</div><div><h3>${esc(s.shop_name)}</h3><p class="muted">${esc(s.shop_type)}</p></div></div>${pill(s)}</div>
       <dl><dt>Owner</dt><dd>${esc(s.full_name)}</dd><dt>WhatsApp</dt><dd>${esc(s.whatsapp)}</dd><dt>Email</dt><dd>${esc(s.email)}</dd>
       ${s.location ? `<dt>Location</dt><dd>${esc(s.location)}</dd>` : ''}${s.landmark ? `<dt>Landmark</dt><dd>${esc(s.landmark)}</dd>` : ''}
       <dt>Pictures</dt><dd>${c.image} of ${s.picture_limit}</dd><dt>Videos</dt><dd>${c.video} of ${s.video_limit}</dd><dt>Expires</dt><dd>${fmtDate(s.expires_at)}</dd></dl>
@@ -371,7 +376,7 @@ function renderShop() {
   const link = shopLink();
   const share = active ? `<div class="share"><a class="btn wa sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Visit my shop on ShopLink: ' + link)}">Share on WhatsApp</a><button class="btn ghost sm" data-act="copy">Copy shop link</button></div>` : '';
   const notice = active ? '' : `<p class="notice">${esc(NOTES[eff] || '')}</p>`;
-  return `<main class="wrap"><section class="acct"><div class="acct-top"><div class="who2">${logoHtml(p, 'md')}<div><h2>${esc(p.shop_name)}</h2><p class="muted">${esc(p.shop_type)}</p></div></div>${pill(p)}</div>
+  return `<main class="wrap"><section class="acct"><div class="acct-top"><div class="who2"><div class="avatar">${photoHtml(p, 'md')}${logoHtml(p, 'badge')}</div><div><h2>${esc(p.shop_name)}</h2><p class="muted">${esc(p.shop_type)}</p></div></div>${pill(p)}</div>
     <p style="margin:.9rem 0 0;font-weight:600">${active ? 'Active until ' + fmtDate(p.expires_at) : 'Plan expires: ' + fmtDate(p.expires_at)}</p>
     <div class="meter" role="progressbar" aria-valuenow="${u.image}" aria-valuemin="0" aria-valuemax="${p.picture_limit}"><div style="width:${pct}%"></div></div>
     <p class="muted">${u.image} of ${p.picture_limit} pictures used, ${u.video} of ${p.video_limit} videos</p>${share}</section>
@@ -389,8 +394,8 @@ function renderProfile() {
     <form class="pform" data-form="profile">
       <div><b>Shop logo</b><p class="hint">The logo of your business. It shows at the top of your shop.</p>
         <div class="pickrow">${logoHtml(p, 'lg', 'pv-logo')}<input type="file" accept="image/*" data-pf="logo" aria-label="Choose shop logo"></div></div>
-      <div><b>Your profile picture</b><p class="hint">A photo of you. It shows next to your name.</p>
-        <div class="pickrow">${photoHtml(p, 'lg', 'pv-photo')}<input type="file" accept="image/*" data-pf="photo" aria-label="Choose profile picture"></div></div>
+      <div><b>Your profile picture</b><p class="hint">Use a clear photo of your face so buyers can recognise you. It shows large on your shop.</p>
+        <div class="pickrow">${photoHtml(p, 'xl', 'pv-photo')}<input type="file" accept="image/*" data-pf="photo" aria-label="Choose profile picture"></div></div>
       ${field('Your name', 'full_name', p.full_name, 'required')}
       ${field('Shop name', 'shop_name', p.shop_name, 'required')}
       <label>Shop type<select name="shop_type">${types.map((t) => `<option${t === p.shop_type ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
@@ -575,7 +580,7 @@ document.addEventListener('change', (e) => {
     if (!file.type.startsWith('image/')) { toast('Please choose a picture.'); return; }
     state.pf[kind] = file;
     const el = $('pv-' + kind);
-    if (el) el.outerHTML = `<img id="pv-${kind}" class="${kind === 'photo' ? 'photo' : 'logo'} lg" src="${URL.createObjectURL(file)}" alt="Preview">`;
+    if (el) el.outerHTML = `<img id="pv-${kind}" class="${kind === 'photo' ? 'photo xl' : 'logo lg'}" src="${URL.createObjectURL(file)}" alt="Preview">`;
   }
 });
 

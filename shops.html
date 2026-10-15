@@ -67,8 +67,18 @@ img.logo,img.photo{display:block;object-fit:cover}
 .logo.md{width:3.25rem;height:3.25rem;font-size:1.4rem}
 .logo.lg{width:4.5rem;height:4.5rem;font-size:1.8rem;border-radius:1rem}
 .photo{border-radius:50%;background:#E7E9F3;color:var(--ink)}
+img.photo{object-position:center 25%}
 .photo.xs{width:1.5rem;height:1.5rem;font-size:.7rem}
+.photo.sm{width:2.75rem;height:2.75rem;font-size:1rem}
+.photo.md{width:4.5rem;height:4.5rem;font-size:1.7rem}
 .photo.lg{width:4.5rem;height:4.5rem;font-size:1.6rem}
+.photo.xl{width:8rem;height:8rem;font-size:3rem}
+.avatar{position:relative;flex:none;border:0;background:none;padding:0;border-radius:50%;cursor:pointer}
+.logo.badge{position:absolute;right:-.3rem;bottom:-.3rem;width:2.1rem;height:2.1rem;border:2px solid var(--paper);border-radius:.6rem;font-size:.9rem}
+.hero-id{display:grid;justify-items:center;text-align:center;gap:.25rem;margin-bottom:1.1rem}
+.hero-id h3{font-size:1.4rem;margin-top:.4rem}
+.seller-strip{display:flex;align-items:center;gap:.7rem;min-width:0}
+.seller-strip b{display:block;overflow-wrap:anywhere}
 
 .scrim{position:fixed;inset:0;background:rgba(30,35,71,.55);z-index:20;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--paper);width:min(100%,34rem);max-height:90vh;overflow-y:auto;border-radius:1.25rem 1.25rem 0 0;padding:1.25rem 1.25rem 1.75rem}
@@ -164,7 +174,7 @@ function render() {
   const rows = shops.map((s) => {
     const list = (byShop[s.id] || []).filter((i) => state.cat === 'all' || i.category_id === state.cat);
     if (!list.length && !only) return '';
-    return `<section class="shop"><div class="shop-head"><div class="who">${logoHtml(s, 'md')}<div><h2>${esc(s.shop_name)}</h2><p class="muted">${esc(s.shop_type)}, ${list.length} item${list.length === 1 ? '' : 's'}</p><span class="owner">${photoHtml(s, 'xs')}${esc(String(s.owner_name || '').split(' ')[0])}</span></div></div>
+    return `<section class="shop"><div class="shop-head"><div class="who"><button class="avatar" data-act="info" data-v="${s.id}" aria-label="See who runs ${esc(s.shop_name)}">${photoHtml(s, 'md')}${logoHtml(s, 'badge')}</button><div><h2>${esc(s.shop_name)}</h2><p class="muted">${esc(s.shop_type)}, ${list.length} item${list.length === 1 ? '' : 's'}</p><span class="owner">${esc(s.owner_name)}</span></div></div>
       <div class="hbtns"><button class="pillbtn" data-act="info" data-v="${s.id}" aria-label="Shop info for ${esc(s.shop_name)}">Info</button><a class="pillbtn wa" target="_blank" rel="noopener" href="https://wa.me/${waNumber(s.whatsapp, s.country)}" aria-label="Chat with ${esc(s.shop_name)} on WhatsApp">Chat</a></div></div>
       ${list.length ? `<div class="row">${list.map((i) => card(i, s)).join('')}</div>` : '<p class="muted">No items in this category yet.</p>'}</section>`;
   }).join('');
@@ -181,8 +191,8 @@ function sheet() {
   if (sh.type === 'info') {
     const s = state.shops.find((x) => x.id === sh.id);
     return `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Shop info"><div class="sheet-head"><h2>Shop info</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
+    <div class="hero-id">${photoHtml(s, 'xl')}<h3>${esc(s.owner_name)}</h3><p class="muted">Shop owner</p></div>
     <div class="idcard">${logoHtml(s, 'lg')}<div><h3>${esc(s.shop_name)}</h3><p class="muted">${esc(s.shop_type)}</p></div></div>
-    <div class="idcard">${photoHtml(s, 'lg')}<div><h3>${esc(s.owner_name)}</h3><p class="muted">Shop owner</p></div></div>
     <dl class="info"><dt>WhatsApp</dt><dd>+${esc(waNumber(s.whatsapp, s.country))}</dd>
       ${s.email ? `<dt>Email</dt><dd><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></dd>` : ''}
       ${s.location ? `<dt>Location</dt><dd>${esc(s.location)}</dd>` : ''}
@@ -195,7 +205,7 @@ function sheet() {
     const pics = media.map((m, k) => `<div class="pic">${m.kind === 'video'
       ? `<video src="${esc(mediaUrl(m.path))}" controls playsinline preload="metadata"></video>`
       : `<img src="${esc(mediaUrl(m.path))}" alt="${esc(i.title)}">`}<span class="count">${k + 1} of ${media.length}</span>${sold ? '<span class="stamp">Sold</span>' : ''}</div>`).join('');
-    return `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(i.title)}"><div class="sheet-head"><span class="muted">${esc(s.shop_name)}</span><button class="x" data-act="close" aria-label="Close">×</button></div>
+    return `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(i.title)}"><div class="sheet-head"><div class="seller-strip">${photoHtml(s, 'sm')}<div><b>${esc(s.shop_name)}</b><span class="muted">${esc(s.owner_name)}</span></div></div><button class="x" data-act="close" aria-label="Close">×</button></div>
     <div class="pics">${pics}</div>
     <h3 class="t">${esc(i.title)}</h3><p class="muted">${esc(cat ? cat.name : '')}</p>
     ${i.price != null ? `<p class="price" style="font-size:1.2rem;margin-top:.3rem">${esc(money(i.price, curOf(s)))}</p>` : ''}${i.note ? `<span class="note">${esc(i.note)}</span>` : ''}
