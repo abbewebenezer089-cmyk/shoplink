@@ -144,6 +144,17 @@ a.btn.wa,.btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
 .phone{display:flex;gap:.5rem}
 .dial{display:grid;place-items:center;min-width:4rem;border:2px solid var(--line);border-radius:.7rem;background:var(--paper);font-weight:700;padding:0 .6rem}
 .phone input{flex:1;min-width:0}
+.termgrid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.quick{display:flex;gap:.5rem}
+.plan-note{background:var(--marigold-soft);border-radius:.8rem;padding:.7rem .85rem;margin:.8rem 0;font-size:.92rem}
+.foot{border-top:2px solid var(--line);padding:1.5rem 1.25rem 2.5rem;text-align:center;color:var(--ink-soft);font-size:.9rem;margin-top:1rem}
+.foot p{margin:0}
+.foot .owner-name{font-family:var(--display);font-weight:800;font-size:1.3rem;color:var(--ink);margin-top:.1rem}
+.foot .role{margin-bottom:.9rem}
+.foot .sitelink{margin-bottom:.7rem;font-weight:700;color:var(--ink);overflow-wrap:anywhere}
+.foot-btns{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap}
+.foot-btns button,.foot-btns a{border:2px solid var(--ink);background:#fff;color:var(--ink);font:inherit;font-weight:800;border-radius:99px;padding:.45rem .95rem;font-size:.88rem;min-height:2.5rem;text-decoration:none;display:inline-flex;align-items:center;cursor:pointer}
+.foot-btns a{border-color:var(--wa);color:var(--wa)}
 </style>
 </head>
 <body>
@@ -159,6 +170,13 @@ a.btn.wa,.btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
   </div>
 </header>
 <div id="app"><p class="loading">Loading...</p></div>
+<footer class="foot">
+  <p>ShopLink is owned and managed by</p>
+  <p class="owner-name">Ebenezer Abbew</p>
+  <p class="role">Founder and Admin</p>
+  <p class="sitelink" id="sitelink"></p>
+  <div class="foot-btns"><button type="button" id="copysite">Copy link</button><a id="sharesite" target="_blank" rel="noopener">Share on WhatsApp</a></div>
+</footer>
 <div id="overlay"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -217,7 +235,7 @@ async function shrink(file, maxSide, type, quality) {
   return new Promise((resolve, reject) => canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Could not prepare the picture.')), type, quality));
 }
 
-const state = {me:null, role:null, tab:null, filter:'all', sellers:[], counts:{}, categories:[], items:[], messages:[], thread:null, sheet:null, pendingDel:null, refocus:false, files:[], pf:{}};
+const state = {me:null, role:null, tab:null, filter:'all', sellers:[], counts:{}, categories:[], items:[], messages:[], thread:null, sheet:null, pendingDel:null, refocus:false, files:[], pf:{}, prefill:''};
 
 /* ---------- loading data ---------- */
 async function ok(promise) {
@@ -291,16 +309,17 @@ function renderSellers() {
     `<button class="chip" aria-pressed="${state.filter === f}" data-act="filter" data-v="${f}">${f[0].toUpperCase() + f.slice(1)}</button>`).join('');
   const cards = list.map((s) => {
     const c = state.counts[s.id] || {image:0, video:0};
-    const label = s.eff === 'pending' ? 'Activate' : s.eff === 'expired' ? 'Renew' : 'Reactivate';
-    const btns = s.eff === 'active'
-      ? `<button class="btn ghost sm" data-act="activate" data-v="${s.id}" data-m="6">Extend 6 months</button><button class="btn danger sm" data-act="suspend" data-v="${s.id}">Suspend</button>`
-      : `<button class="btn sm" data-act="activate" data-v="${s.id}" data-m="6">${label} 6 months</button><button class="btn sm" data-act="activate" data-v="${s.id}" data-m="12">${label} 1 year</button>`;
+    const label = s.eff === 'pending' ? 'Activate' : s.eff === 'active' ? 'Extend' : s.eff === 'expired' ? 'Renew' : 'Reactivate';
+    const second = s.eff === 'active'
+      ? `<button class="btn danger sm" data-act="suspend" data-v="${s.id}">Suspend</button>`
+      : `<button class="btn ghost sm" data-act="msgSeller" data-v="${s.id}">Message</button>`;
+    const btns = `<button class="btn sm" data-act="chooseTerm" data-v="${s.id}">${label}</button>${second}`;
     return `<article class="seller">
       <div class="acct-top"><div class="who2"><div class="avatar">${photoHtml(s, 'md')}${logoHtml(s, 'badge')}</div><div><h3>${esc(s.shop_name)}</h3><p class="muted">${esc(s.shop_type)}</p></div></div>${pill(s)}</div>
       <dl><dt>Owner</dt><dd>${esc(s.full_name)}</dd><dt>WhatsApp</dt><dd>${esc(s.whatsapp)}</dd><dt>Email</dt><dd>${esc(s.email)}</dd>
       ${s.location ? `<dt>Location</dt><dd>${esc(s.location)}</dd>` : ''}${s.landmark ? `<dt>Landmark</dt><dd>${esc(s.landmark)}</dd>` : ''}
       <dt>Pictures</dt><dd>${c.image} of ${s.picture_limit}</dd><dt>Videos</dt><dd>${c.video} of ${s.video_limit}</dd><dt>Expires</dt><dd>${fmtDate(s.expires_at)}</dd></dl>
-      <div class="btns">${btns}<button class="btn ghost sm" data-act="viewItems" data-v="${s.id}">View items</button><button class="btn ghost sm" data-act="msgSeller" data-v="${s.id}">Message</button></div>
+      <div class="btns">${btns}<button class="btn ghost sm" data-act="limitSheet" data-v="${s.id}">Picture limit</button><button class="btn ghost sm" data-act="viewItems" data-v="${s.id}">View items</button>${s.eff === 'active' ? `<button class="btn ghost sm full" data-act="msgSeller" data-v="${s.id}">Message</button>` : ''}</div>
     </article>`;
   }).join('');
   return `<main class="wrap"><p class="lead">Every seller who registers appears here as Pending until you activate them.</p>
@@ -329,6 +348,25 @@ function renderCategories() {
 function renderSheet() {
   const sh = state.sheet; if (!sh) return '';
   const rows = (sh.items || []).map((i) => `<div class="mini"><div><b>${esc(i.title)}</b><span class="muted">${esc(i.categories ? i.categories.name : '')}${i.price != null ? ', ' + esc(i.price) : ''}, ${i.item_media.length} file${i.item_media.length === 1 ? '' : 's'}${i.status === 'sold' ? ', sold' : ''}</span></div><button class="btn danger sm" data-act="delItem" data-v="${i.id}">${state.pendingDel === i.id ? 'Tap again' : 'Delete'}</button></div>`).join('');
+  if (sh.type === 'term') {
+    const s = state.sellers.find((x) => x.id === sh.id), eff = effStatus(s);
+    const opts = [[2, '2 months'], [4, '4 months'], [6, '6 months'], [12, '1 year']];
+    return `<div class="scrim" data-act="closeSheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="Choose plan"><div class="sheet-head"><h2>${esc(s.shop_name)}</h2><button class="x" data-act="closeSheet" aria-label="Close">×</button></div>
+    <p class="muted" style="margin-bottom:1rem">${eff === 'active' ? 'Active until ' + fmtDate(s.expires_at) + '. The new time is added after that date.' : 'Choose how long to activate this seller. The new period starts today.'}</p>
+    <div class="termgrid">${opts.map(([m, l]) => `<button class="btn" data-act="activate" data-v="${s.id}" data-m="${m}">${l}</button>`).join('')}</div></div></div>`;
+  }
+  if (sh.type === 'limit') {
+    const s = state.sellers.find((x) => x.id === sh.id), c = state.counts[s.id] || {image: 0, video: 0};
+    return `<div class="scrim" data-act="closeSheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="Picture limit"><div class="sheet-head"><h2>Picture limit</h2><button class="x" data-act="closeSheet" aria-label="Close">×</button></div>
+    <p class="muted">${esc(s.shop_name)} has used ${c.image} of ${s.picture_limit} pictures.</p>
+    <form data-form="limit" style="margin-top:1rem">
+      <label>New picture limit<input name="limit" type="number" min="80" step="1" inputmode="numeric" value="${s.picture_limit}" required></label>
+      <div class="quick"><button type="button" class="chip" data-act="addlimit" data-v="20">+20</button><button type="button" class="chip" data-act="addlimit" data-v="50">+50</button><button type="button" class="chip" data-act="addlimit" data-v="100">+100</button></div>
+      <p class="hint">The minimum is 80. Pictures above 80 are paid for by the seller. Videos stay at a maximum of 10.</p>
+      <p class="formerr" id="limit-err" role="alert"></p>
+      <button class="btn" type="submit">Save limit</button>
+    </form></div></div>`;
+  }
   if (sh.type === 'add' || sh.type === 'edit') {
     const edit = sh.type === 'edit', it = edit ? state.items.find((x) => x.id === sh.id) : null, p = state.me, u = usage();
     const opts = state.categories.map((c) => `<option value="${c.id}"${it && it.category_id === c.id ? ' selected' : ''}>${esc(c.name)}</option>`).join('');
@@ -380,7 +418,9 @@ function renderShop() {
   return `<main class="wrap"><section class="acct"><div class="acct-top"><div class="who2"><div class="avatar">${photoHtml(p, 'hero')}${logoHtml(p, 'badge')}</div><div><h2>${esc(p.shop_name)}</h2><p class="muted">${esc(p.shop_type)}</p></div></div>${pill(p)}</div>
     <p style="margin:.9rem 0 0;font-weight:600">${active ? 'Active until ' + fmtDate(p.expires_at) : 'Plan expires: ' + fmtDate(p.expires_at)}</p>
     <div class="meter" role="progressbar" aria-valuenow="${u.image}" aria-valuemin="0" aria-valuemax="${p.picture_limit}"><div style="width:${pct}%"></div></div>
-    <p class="muted">${u.image} of ${p.picture_limit} pictures used, ${u.video} of ${p.video_limit} videos</p>${share}</section>
+    <p class="muted">${u.image} of ${p.picture_limit} pictures used, ${u.video} of ${p.video_limit} videos</p>
+    <p class="plan-note"><b>Pictures:</b> every plan includes 80 pictures. More can be added at an extra cost. <b>Videos:</b> up to 10.${cfg.EXTRA_PICTURES_NOTE ? ' ' + esc(cfg.EXTRA_PICTURES_NOTE) : ''}</p>
+    <button class="btn ghost sm" data-act="askMore">Ask for more pictures</button>${share}</section>
     ${notice}
     <button class="btn" data-act="openAdd" ${active ? '' : 'disabled'}>Add item</button>
     <div class="feed">${state.items.map((i) => itemCard(i, active)).join('') || '<p class="empty">You have no items yet. Tap Add item to post your first one.</p>'}</div></main>`;
@@ -431,6 +471,7 @@ function render() {
   $('overlay').innerHTML = renderSheet();
   const th = $('thread'); if (th) th.scrollTop = th.scrollHeight;
   if (state.refocus) { const i = document.querySelector('.chat-input'); if (i) i.focus(); state.refocus = false; }
+  if (state.prefill) { const i = document.querySelector('.chat-input'); if (i) { i.value = state.prefill; i.focus(); } state.prefill = ''; }
 }
 
 async function refresh() {
@@ -452,7 +493,7 @@ document.addEventListener('click', (e) => {
   else if (act === 'activate') guard(async () => {
     const months = Number(el.dataset.m);
     await ok(sb.rpc('activate_seller', {p_id: v, p_months: months}).then((r) => ({data: [], error: r.error})));
-    await refresh(); toast('Done. ' + sellerName(v) + ' is updated.');
+    state.sheet = null; await refresh(); toast('Done. ' + sellerName(v) + ' is updated.');
   });
   else if (act === 'suspend') guard(async () => {
     await ok(sb.from('profiles').update({status: 'suspended'}).eq('id', v).then((r) => ({data: [], error: r.error})));
@@ -465,6 +506,10 @@ document.addEventListener('click', (e) => {
     state.sheet = {id: v, items}; state.pendingDel = null; render();
   });
   else if (act === 'closeSheet') { closeSheet(); }
+  else if (act === 'chooseTerm') { state.sheet = {type: 'term', id: v}; render(); }
+  else if (act === 'limitSheet') { state.sheet = {type: 'limit', id: v}; render(); }
+  else if (act === 'addlimit') { const inp = document.querySelector('[name=limit]'); if (inp) inp.value = (Number(inp.value) || 80) + Number(v); }
+  else if (act === 'askMore') { state.tab = 'messages'; state.prefill = 'Hello, I would like to increase my picture limit. Please tell me the cost.'; render(); }
   else if (act === 'openAdd') { state.files = []; state.sheet = {type: 'add'}; render(); }
   else if (act === 'openEdit') { state.sheet = {type: 'edit', id: v}; render(); }
   else if (act === 'rmfile') { const x = state.files.splice(Number(v), 1)[0]; if (x && x.url) URL.revokeObjectURL(x.url); drawFiles(); }
@@ -533,6 +578,14 @@ document.addEventListener('submit', (e) => {
     await loadSeller(); closeSheet(); toast('Changes saved.');
   });
   else if (kind === 'profile') saveProfile(form, f);
+  else if (kind === 'limit') guard(async () => {
+    const n = Math.floor(Number(f.get('limit')));
+    if (!(n >= 80)) { $('limit-err').textContent = 'The minimum is 80 pictures.'; return; }
+    const id = state.sheet.id, name = sellerName(id);
+    const { error } = await sb.from('profiles').update({picture_limit: n}).eq('id', id);
+    if (error) throw new Error(error.message);
+    state.sheet = null; await refresh(); toast(name + ' can now upload ' + n + ' pictures.');
+  });
   else if (kind === 'cat') guard(async () => {
     const name = String(f.get('name')).trim(); if (!name) return;
     const { error } = await sb.from('categories').insert({name, sort: 50});
@@ -558,7 +611,7 @@ function addFiles(list) {
     const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : null;
     if (!kind) { msgs.push(file.name + ' is not a picture or video.'); return; }
     if (kind === 'video' && file.size > MAXVID) { msgs.push(file.name + ' is bigger than 30 MB. Choose a shorter video.'); return; }
-    if (kind === 'image' && u.image + imgs >= p.picture_limit) { msgs.push('You have reached your picture limit.'); return; }
+    if (kind === 'image' && u.image + imgs >= p.picture_limit) { msgs.push('You have reached your picture limit. Tap Messages to ask the admin for more.'); return; }
     if (kind === 'video' && u.video + vids >= p.video_limit) { msgs.push('You have reached your video limit.'); return; }
     state.files.push({file, kind, url: kind === 'image' ? URL.createObjectURL(file) : null});
     if (kind === 'image') imgs++; else vids++;
@@ -670,6 +723,21 @@ setInterval(async () => {
     }
   } catch (err) { /* try again next time */ }
 }, 15000);
+
+
+/* ---------- owner footer: site link to copy and share ---------- */
+(function () {
+  const url = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const text = document.getElementById('sitelink'); if (!text) return;
+  text.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  document.getElementById('sharesite').href = 'https://wa.me/?text=' + encodeURIComponent('Visit ShopLink: ' + url);
+  const btn = document.getElementById('copysite');
+  btn.addEventListener('click', () => {
+    const done = () => { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy link'; }, 2000); };
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, () => window.prompt('Copy this link:', url));
+    else window.prompt('Copy this link:', url);
+  });
+})();
 
 /* ---------- start ---------- */
 (async function boot() {
