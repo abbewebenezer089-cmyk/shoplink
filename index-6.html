@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ShopLink - Your shop, one link, on WhatsApp</title>
+  <meta name="description" content="Post photos and videos of your items once. Buyers order straight to your WhatsApp.">
+  <meta name="theme-color" content="#1E2347">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Hanken+Grotesk:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .linkbtn{background:none;border:0;color:var(--ink);font:inherit;font-weight:700;text-decoration:underline;padding:.4rem 0;min-height:2.75rem;cursor:pointer;text-align:left}
+    .ftitle{font-family:var(--display);font-size:1.4rem;margin:0}
+    .install{margin-top:1rem;background:var(--ink);color:var(--paper)}
+    .phone{display:flex;gap:.5rem}
+    .dial{display:grid;place-items:center;min-width:4rem;border:2px solid var(--line);border-radius:.7rem;background:var(--paper);font-weight:700;padding:0 .6rem}
+    .phone input{flex:1;min-width:0}
+    select{font:inherit;font-size:1rem;padding:.8rem .9rem;min-height:3rem;border:2px solid var(--line);border-radius:.7rem;background:#fff;color:var(--ink);width:100%}
+    select:focus{border-color:var(--ink);outline:none;box-shadow:0 0 0 3px var(--marigold)}
+.foot{border-top:2px solid var(--line);padding:1.5rem 1.25rem 2.5rem;text-align:center;color:var(--ink-soft);font-size:.9rem;margin-top:1rem}
+    .foot p{margin:0}
+    .foot .owner-name{font-family:var(--display);font-weight:800;font-size:1.3rem;color:var(--ink);margin-top:.1rem}
+    .foot .role{margin-bottom:.9rem}
+    .foot .sitelink{margin-bottom:.7rem;font-weight:700;color:var(--ink);overflow-wrap:anywhere}
+    .foot-btns{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap}
+    .foot-btns button,.foot-btns a{border:2px solid var(--ink);background:#fff;color:var(--ink);font:inherit;font-weight:800;border-radius:99px;padding:.45rem .95rem;font-size:.88rem;min-height:2.5rem;text-decoration:none;display:inline-flex;align-items:center;cursor:pointer}
+    .foot-btns a{border-color:var(--wa);color:var(--wa)}
+#owner-photo{display:flex;justify-content:center;margin-bottom:.6rem}
+.owner-photo{width:6.5rem;height:6.5rem;border-radius:50%;object-fit:cover;object-position:center 25%;border:3px solid var(--line)}
+    .browse{display:inline-block;margin-top:1rem;margin-right:.6rem;text-decoration:none;background:#fff;color:var(--ink)}
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <img src="logo.svg" alt="">
+      <span class="brand">ShopLink</span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <h1>Post it once. Sell it on WhatsApp.</h1>
+      <p class="lead">Put your clothes, boots, pomade, sprays, necklaces and chains on one shop page. Share a single link and buyers order straight to your WhatsApp.</p>
+      <span class="linkchip"><i>@</i>shoplink/your-shop-name</span>
+      <div>
+        <a class="btn browse" href="shops.html">Visit ShopLink</a>
+        <button class="btn install" id="install" type="button" hidden>Install ShopLink app</button>
+        <p class="msg ok" id="ios-hint" style="margin-top:1rem" hidden>To install on iPhone: open this page in Safari, tap the Share button, then tap Add to Home Screen.</p>
+      </div>
+    </section>
+
+    <section class="auth" aria-label="Sign in or create an account">
+      <div class="tabs" id="tabs" role="tablist">
+        <button type="button" role="tab" id="tab-in" aria-selected="true" aria-controls="form-in">Sign in</button>
+        <button type="button" role="tab" id="tab-up" aria-selected="false" aria-controls="form-up">Create account</button>
+      </div>
+
+      <form id="form-in" role="tabpanel" aria-labelledby="tab-in">
+        <label>Email
+          <input type="email" name="email" autocomplete="email" required>
+        </label>
+        <label>Password
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <button type="button" class="linkbtn" id="forgot">Forgot password?</button>
+        <p class="msg" id="msg-in" hidden></p>
+        <button class="btn" type="submit">Sign in</button>
+      </form>
+
+      <form id="form-up" role="tabpanel" aria-labelledby="tab-up" hidden>
+        <label>Your name
+          <input type="text" name="full_name" autocomplete="name" required>
+        </label>
+        <label>Shop name
+          <input type="text" name="shop_name" required>
+        </label>
+        <label>Country
+          <select name="country" id="country" required><option value="">Select your country</option></select>
+        </label>
+        <label>WhatsApp number
+          <span class="phone"><span class="dial" id="dial">+</span><input type="tel" name="whatsapp" inputmode="tel" autocomplete="tel-national" required></span>
+          <span class="hint" id="phone-hint">Type your number without the country code.</span>
+        </label>
+        <label>Email
+          <input type="email" name="email" autocomplete="email" required>
+        </label>
+        <label>Password
+          <input type="password" name="password" autocomplete="new-password" minlength="6" required>
+          <span class="hint">At least 6 characters.</span>
+        </label>
+        <p class="msg" id="msg-up" hidden></p>
+        <button class="btn" type="submit">Create account</button>
+      </form>
+
+      <form id="form-reset" hidden>
+        <h2 class="ftitle">Reset your password</h2>
+        <p class="hint">Enter your email. We will send you a link to set a new password.</p>
+        <label>Email
+          <input type="email" name="email" autocomplete="email" required>
+        </label>
+        <p class="msg" id="msg-reset" hidden></p>
+        <button class="btn" type="submit">Send reset link</button>
+        <button type="button" class="linkbtn" id="back">Back to sign in</button>
+      </form>
+
+      <form id="form-new" hidden>
+        <h2 class="ftitle">Choose a new password</h2>
+        <label>New password
+          <input type="password" name="password" autocomplete="new-password" minlength="6" required>
+          <span class="hint">At least 6 characters.</span>
+        </label>
+        <p class="msg" id="msg-new" hidden></p>
+        <button class="btn" type="submit">Save new password</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li><b>1</b><div><h3>Create your account</h3><p>Add your shop name and WhatsApp number.</p></div></li>
+        <li><b>2</b><div><h3>Pay and get activated</h3><p>Once your payment is confirmed, the admin activates your account for the period you choose: 2, 4 or 6 months, or 1 year.</p></div></li>
+        <li><b>3</b><div><h3>Post and share</h3><p>Add photos and videos of your items, then share your shop link on WhatsApp.</p></div></li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div id="owner-photo"></div>
+  <p>ShopLink is owned and managed by</p>
+    <p class="owner-name" id="owner-name">Ebenezer Abbew</p>
+    <p class="role">Founder and Admin</p>
+    <p class="sitelink" id="sitelink"></p>
+    <div class="foot-btns"><button type="button" id="copysite">Copy link</button><a id="sharesite" target="_blank" rel="noopener">Share on WhatsApp</a></div>
+  </footer>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="countries.js"></script>
+  <script src="app.js"></script>
+  <script>
+/* ---------- owner footer: site link to copy and share ---------- */
+(function () {
+  const url = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const text = document.getElementById('sitelink'); if (!text) return;
+  text.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  document.getElementById('sharesite').href = 'https://wa.me/?text=' + encodeURIComponent('Visit ShopLink: ' + url);
+  // owner photo and name come from the admin's profile
+  try {
+    if (typeof sb !== 'undefined' && sb) {
+      sb.from('site_owner').select('full_name,photo_path').limit(1).then(({ data }) => {
+        const o = data && data[0]; if (!o) return;
+        if (o.full_name) document.getElementById('owner-name').textContent = o.full_name;
+        if (o.photo_path) {
+          const img = document.createElement('img'); img.className = 'owner-photo'; img.alt = '';
+          img.src = sb.storage.from('media').getPublicUrl(o.photo_path).data.publicUrl;
+          document.getElementById('owner-photo').appendChild(img);
+        }
+      });
+    }
+  } catch (e) { /* the footer still shows the default name */ }
+  const btn = document.getElementById('copysite');
+  btn.addEventListener('click', () => {
+    const done = () => { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy link'; }, 2000); };
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, () => window.prompt('Copy this link:', url));
+    else window.prompt('Copy this link:', url);
+  });
+})();
+</script>
+</body>
+</html>
