@@ -516,7 +516,7 @@ function renderProfile() {
         <span class="hint" id="pf-hint">${cn ? 'Type your number without the country code.' : 'Include your country code in the number.'}</span></label>
       <label>Currency symbol or code<input name="currency" id="pf-cur" maxlength="8" value="${esc(curOf(p))}" placeholder="e.g. GH₵"></label>
       ${field('Email buyers can use', 'email', p.email, 'type="email" required')}
-      ${field('Location', 'location', p.location, 'placeholder="e.g. Kumasi, Adum" maxlength="80"')}
+      ${field('Location (start with your town so buyers can find you)', 'location', p.location, 'placeholder="e.g. Apam, near the market" maxlength="80"')}
       ${field('Nearest landmark', 'landmark', p.landmark, 'placeholder="e.g. Opposite the main market" maxlength="80"')}
       <p class="formerr" id="profile-err" role="alert"></p>
       <button class="btn" type="submit" id="savebtn">Save profile</button>

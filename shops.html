@@ -115,6 +115,19 @@ img.photo{object-position:center 25%}
 @keyframes splash-pop{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
 @keyframes splash-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.splash,.splash *{animation:none!important;transition:none!important}}
+.searchwrap{margin-top:1.1rem;padding-bottom:0;position:relative}
+.searchrow{display:flex;align-items:center;gap:.5rem;background:#fff;border:2px solid var(--ink);border-radius:99px;padding:0 1rem}
+.searchrow input{flex:1;min-width:0;border:0;background:transparent;font:inherit;font-size:1rem;min-height:3.1rem;color:var(--ink);outline:none}
+.searchrow:focus-within{box-shadow:0 0 0 3px var(--marigold)}
+.sugg{list-style:none;margin:.4rem 0 0;padding:.3rem;background:#fff;border:2px solid var(--line);border-radius:1rem;position:absolute;left:0;right:0;z-index:10;box-shadow:0 8px 24px rgba(30,35,71,.15)}
+.sugg .hd{padding:.4rem .8rem;font-size:.8rem;font-weight:700;color:var(--ink-soft)}
+.sugg button{width:100%;text-align:left;border:0;background:none;padding:.75rem .8rem;border-radius:.7rem;display:flex;justify-content:space-between;gap:.6rem;font-weight:700;min-height:2.75rem}
+.sugg button:hover,.sugg button:focus-visible{background:var(--paper)}
+.sugg small{color:var(--ink-soft);font-weight:600}
+.found{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin:1rem 0 .4rem}
+.found p{margin:0;font-weight:700}
+.linkbtn{border:0;background:none;font:inherit;font-weight:800;text-decoration:underline;padding:.4rem 0;min-height:2.5rem}
+.placechips{display:flex;flex-wrap:wrap;gap:.5rem;margin:.8rem 0}
 </style>
 </head>
 <body>
@@ -141,6 +154,10 @@ img.photo{object-position:center 25%}
     <a class="sell" href="index.html">Sell on ShopLink</a>
   </div>
 </header>
+<div class="wrap searchwrap" id="searchbox">
+  <div class="searchrow"><span aria-hidden="true">📍</span><input id="q" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search a town, e.g. Apam, Elmina, Konongo" aria-label="Search for shops by town"></div>
+  <ul id="sugg" class="sugg" hidden></ul>
+</div>
 <div id="app"><p class="empty">Loading shops...</p></div>
 <footer class="foot">
   <div id="owner-photo"></div>
@@ -179,12 +196,52 @@ const logoHtml = (s, size) => s.logo_path ? `<img class="logo ${size}" src="${es
 const photoHtml = (s, size) => s.photo_path ? `<img class="photo ${size}" src="${esc(mediaUrl(s.photo_path))}" alt="">` : `<span class="photo ${size}">${esc(initial(s.owner_name))}</span>`;
 
 const only = new URLSearchParams(location.search).get('shop');
-const state = {shops:[], cats:[], items:[], cat:'all', sheet:null};
+const state = {shops:[], cats:[], items:[], cat:'all', sheet:null, q:'', qRaw:''};
 
 async function ok(promise) {
   const { data, error } = await promise;
   if (error) throw new Error(error.message);
   return data || [];
+}
+
+
+/* ---------- search by town ---------- */
+const norm = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+function matches(s, q) {
+  if (!q) return true;
+  const hay = norm([s.location, s.landmark, s.shop_name].join(' '));
+  return q.split(' ').every((w) => hay.includes(w));
+}
+// every town written in sellers' locations, with how many shops are there
+function places() {
+  const map = new Map();
+  state.shops.forEach((s) => {
+    const seen = new Set();
+    String(s.location || '').split(',').forEach((part) => {
+      const name = part.trim(), key = norm(name);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      const e = map.get(key) || {name, count: 0};
+      e.count++; map.set(key, e);
+    });
+  });
+  return Array.from(map.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+function drawSugg() {
+  const box = $('sugg'), q = norm($('q').value);
+  let list = places();
+  if (q) list = list.filter((p) => norm(p.name).includes(q));
+  list = list.slice(0, 6);
+  if (!list.length) { box.hidden = true; return; }
+  box.innerHTML = (q ? '' : '<li class="hd">Towns with shops</li>') + list.map((p) =>
+    `<li><button type="button" data-act="place" data-v="${esc(p.name)}">${esc(p.name)} <small>${p.count} shop${p.count === 1 ? '' : 's'}</small></button></li>`).join('');
+  box.hidden = false;
+}
+function setQuery(text) {
+  $('q').value = text;
+  state.qRaw = text; state.q = norm(text);
+  $('sugg').hidden = true;
+  render();
 }
 
 function orderLink(i, s) {
@@ -207,6 +264,7 @@ function render() {
   state.items.forEach((i) => { (byShop[i.seller_id] || (byShop[i.seller_id] = [])).push(i); });
   let shops = state.shops.slice();
   if (only) shops = shops.filter((s) => s.shop_slug === only);
+  else shops = shops.filter((s) => matches(s, state.q));
   // newest activity first
   const newest = (s) => (byShop[s.id] && byShop[s.id][0]) ? byShop[s.id][0].created_at : '';
   shops.sort((a, b) => newest(a) < newest(b) ? 1 : -1);
@@ -217,15 +275,17 @@ function render() {
   const rows = shops.map((s) => {
     const list = (byShop[s.id] || []).filter((i) => state.cat === 'all' || i.category_id === state.cat);
     if (!list.length && !only) return '';
-    return `<section class="shop"><div class="shop-head"><div class="who"><button class="avatar" data-act="info" data-v="${s.id}" aria-label="See who runs ${esc(s.shop_name)}">${photoHtml(s, 'hero')}${logoHtml(s, 'badge')}</button><div><h2>${esc(s.shop_name)}</h2><p class="muted">${esc(s.shop_type)}, ${list.length} item${list.length === 1 ? '' : 's'}</p><span class="owner">${esc(s.owner_name)}</span></div></div>
+    return `<section class="shop"><div class="shop-head"><div class="who"><button class="avatar" data-act="info" data-v="${s.id}" aria-label="See who runs ${esc(s.shop_name)}">${photoHtml(s, 'hero')}${logoHtml(s, 'badge')}</button><div><h2>${esc(s.shop_name)}</h2><p class="muted">${esc(s.shop_type)}, ${list.length} item${list.length === 1 ? '' : 's'}</p>${s.location ? `<p class="muted">📍 ${esc(s.location)}</p>` : ''}<span class="owner">${esc(s.owner_name)}</span></div></div>
       <div class="hbtns"><button class="pillbtn" data-act="info" data-v="${s.id}" aria-label="Shop info for ${esc(s.shop_name)}">Info</button><a class="pillbtn wa" target="_blank" rel="noopener" href="https://wa.me/${waNumber(s.whatsapp, s.country)}" aria-label="Chat with ${esc(s.shop_name)} on WhatsApp">Chat</a></div></div>
       ${list.length ? `<div class="row">${list.map((i) => card(i, s)).join('')}</div>` : '<p class="muted">No items in this category yet.</p>'}</section>`;
   }).join('');
 
   let body;
   if (only && !shops.length) body = '<p class="empty">This shop is not available right now.</p><p style="text-align:center"><a href="shops.html"><b>See all shops</b></a></p>';
-  else body = rows || '<p class="empty">No items in this category yet.</p>';
-  $('app').innerHTML = `<main class="wrap"><p class="lead">${only ? '<a href="shops.html"><b>‹ All shops</b></a>' : 'Swipe sideways through each shop. Tap Order to chat with the seller on WhatsApp.'}</p><div class="chips">${chips}</div>${body}</main>`;
+  else if (rows) body = rows;
+  else if (state.q) body = `<p class="empty">No shops found for “${esc(state.qRaw)}” yet.</p><div class="placechips">${places().slice(0, 6).map((p) => `<button class="chip" data-act="place" data-v="${esc(p.name)}">${esc(p.name)}</button>`).join('')}</div>`;
+  else body = '<p class="empty">No items in this category yet.</p>';
+  $('app').innerHTML = `<main class="wrap"><p class="lead">${only ? '<a href="shops.html"><b>‹ All shops</b></a>' : 'Swipe sideways through each shop. Tap Order to chat with the seller on WhatsApp.'}</p><div class="chips">${chips}</div>${(!only && state.q && rows) ? `<div class="found"><p>Shops for “${esc(state.qRaw)}”</p><button class="linkbtn" data-act="clearq">Clear</button></div>` : ''}${body}</main>`;
   $('overlay').innerHTML = sheet();
 }
 
@@ -263,6 +323,8 @@ document.addEventListener('click', (e) => {
   if (el.classList.contains('scrim') && e.target !== el) return;
   const act = el.dataset.act, v = el.dataset.v;
   if (act === 'cat') { state.cat = v; render(); }
+  else if (act === 'place') { setQuery(v); }
+  else if (act === 'clearq') { setQuery(''); }
   else if (act === 'info') { state.sheet = {type: 'info', id: v}; render(); }
   else if (act === 'item') { state.sheet = {type: 'item', id: v}; render(); }
   else if (act === 'close') { state.sheet = null; render(); }
@@ -296,6 +358,13 @@ document.addEventListener('click', (e) => {
     else window.prompt('Copy this link:', url);
   });
 })();
+
+$('q').addEventListener('input', (e) => { state.qRaw = e.target.value; state.q = norm(e.target.value); drawSugg(); render(); });
+$('q').addEventListener('search', (e) => { state.qRaw = e.target.value; state.q = norm(e.target.value); drawSugg(); render(); });
+$('q').addEventListener('focus', drawSugg);
+$('q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('sugg').hidden = true; $('q').blur(); } });
+document.addEventListener('click', (e) => { if (!e.target.closest('#searchbox')) $('sugg').hidden = true; });
+if (only) $('searchbox').hidden = true;
 
 (async function boot() {
   try {
