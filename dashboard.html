@@ -214,6 +214,17 @@ body{padding-bottom:4.75rem}
 .toprow{display:flex;justify-content:space-between;align-items:center;padding-top:.9rem;padding-bottom:0}
 .pillbtn{border:2px solid var(--ink);background:#fff;color:var(--ink);font-weight:800;font-size:1rem;border-radius:99px;padding:.5rem 1.2rem;min-height:2.9rem}
 .pillbtn.red{border-color:var(--chili);color:var(--chili)}
+
+/* Itemised yearly report tables */
+.report-table-wrap{width:100%;overflow-x:auto;margin:.65rem 0 1.1rem;border:1px solid var(--line);border-radius:12px}
+.report-table{width:100%;border-collapse:collapse;min-width:560px;font-size:.86rem}
+.report-table th,.report-table td{padding:.72rem .65rem;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.report-table th{font-size:.76rem;color:var(--muted);background:var(--soft);font-weight:700}
+.report-table td.num,.report-table th.num{text-align:right}
+.report-table tbody tr:last-child td{border-bottom:0}
+.report-table tfoot td{font-weight:800;background:var(--soft)}
+.report-empty{padding:.8rem;color:var(--muted);font-size:.9rem}
+
 </style>
 </head>
 <body>
@@ -756,6 +767,11 @@ function renderReport() {
   const byItem = {};
   r.sales.forEach((s) => { const e = byItem[s.item_title] || (byItem[s.item_title] = {title: s.item_title, revenue: 0, count: 0}); e.revenue += Number(s.amount) || 0; e.count++; });
   const top = Object.values(byItem).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+  // Full transaction lists: do not limit these to the top five items.
+  const salesDetails = [...r.sales].sort((a, b) => new Date(b.sold_at) - new Date(a.sold_at));
+  const expenseDetails = [...r.exp].sort((a, b) => expenseDate(b) - expenseDate(a));
+  const salesTable = salesDetails.length ? `<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Date</th><th>Item sold</th><th class="num">Sales</th><th class="num">Cost of sales</th><th class="num">Profit</th></tr></thead><tbody>${salesDetails.map(s => { const amount = Number(s.amount) || 0; const cost = s.cost == null ? null : Number(s.cost) || 0; return `<tr><td>${esc(fmtDate(new Date(s.sold_at)))}</td><td>${esc(s.item_title || 'Unnamed item')}</td><td class="num">${esc(cash(amount))}</td><td class="num">${cost == null ? '—' : esc(cash(cost))}</td><td class="num">${cost == null ? '—' : esc(cash(amount - cost))}</td></tr>`; }).join('')}</tbody><tfoot><tr><td colspan="2">Total</td><td class="num">${esc(cash(r.revenue))}</td><td class="num">${esc(cash(r.cogs))}</td><td class="num">${esc(cash(r.gross))}</td></tr></tfoot></table></div>` : '<p class="report-empty">No sales recorded for this year.</p>' ;
+  const expensesTable = expenseDetails.length ? `<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Date</th><th>Expense category</th><th>Description</th><th class="num">Amount</th></tr></thead><tbody>${expenseDetails.map(e => `<tr><td>${esc(fmtDate(expenseDate(e)))}</td><td>${esc(EXP_LABEL[e.kind] || e.kind || 'Other')}</td><td>${esc(e.description || '—')}</td><td class="num">${esc(cash(e.amount))}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="3">Total expenses</td><td class="num">${esc(cash(r.spent))}</td></tr></tfoot></table></div>` : '<p class="report-empty">No expenses recorded for this year.</p>' ;
   const byKind = {};
   r.exp.forEach((e) => { byKind[e.kind] = (byKind[e.kind] || 0) + (Number(e.amount) || 0); });
   const kinds = Object.keys(byKind).sort((a, b) => byKind[b] - byKind[a]);
@@ -773,7 +789,9 @@ function renderReport() {
     ${line('Number of sales', r.count)}${line('People who visited your shop', rc.visitors)}${line('Enquiries on WhatsApp', rc.enquiries)}${rc.enquiries ? line('Sales for every 100 enquiries', Math.round(r.count / rc.enquiries * 100)) : ''}${line('Profit margin', margin.toFixed(1) + '%')}${line('Advertising spend', esc(cash(ads)) + (r.revenue ? ' (' + adShare.toFixed(1) + '% of sales)' : ''))}${best >= 0 ? `<div class="best-month-card"><div><span>BEST PERFORMING MONTH · SALES</span><b>${MONTHS[best]}</b></div><b>${esc(cash(months[best].revenue))}</b></div>` : ''}
     <h3 class="sec3">Monthly sales performance</h3><p class="hint">Bars compare each month’s sales revenue. The longest bar represents the highest sales.</p>${monthRows}
     <h3 class="sec3">Best-selling items</h3>${top.map((t) => line(esc(t.title) + ' (' + t.count + ')', esc(cash(t.revenue)))).join('') || '<p class="muted">No sales this year yet.</p>'}
+    <h3 class="sec3">All sales recorded (${salesDetails.length})</h3><p class="hint">Every sale for the selected year, showing the item, amount received, cost of sales and profit.</p>${salesTable}
     <h3 class="sec3">Where the money went</h3>${kinds.map((k) => line(esc(EXP_LABEL[k] || k), esc(cash(byKind[k])))).join('') || '<p class="muted">No expenses this year yet.</p>'}
+    <h3 class="sec3">All expenses recorded (${expenseDetails.length})</h3><p class="hint">Every expense for the selected year, showing its date, category, description and amount.</p>${expensesTable}
     <h3 class="sec3">Download reports</h3>
     <p class="hint">Download your ${y} records as CSV files. You can open them in Excel or Google Sheets.</p>
     <div class="salesbtns">
