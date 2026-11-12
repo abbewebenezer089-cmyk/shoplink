@@ -182,9 +182,17 @@ a.btn.wa,.btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
 .amt.pos{color:#0F5A31}
 .amt.neg{color:#8E1F14}
 .txn .x{width:2.2rem;height:2.2rem;font-size:1rem}
-.mrow{display:grid;grid-template-columns:2.6rem 1fr auto;gap:.6rem;align-items:center;padding:.3rem 0;font-size:.92rem}
-.bar{height:.7rem;background:#E7E9F3;border-radius:99px;overflow:hidden}
-.bar i{display:block;height:100%;background:var(--marigold)}
+.month-row{display:grid;grid-template-columns:3.35rem minmax(3rem,1fr) auto;gap:.65rem;align-items:center;padding:.48rem .55rem;border-radius:.75rem;font-size:.9rem}
+.month-row.is-best{background:#E1F3E9}
+.month-name{font-weight:700}
+.month-track{height:.8rem;background:#E7E9F3;border-radius:99px;overflow:hidden}
+.month-fill{display:block;height:100%;min-width:0;border-radius:99px;background:#D93A2B;transition:width .35s ease}
+.month-fill.mid{background:#F5B82E}
+.month-fill.high{background:#1C9C57}
+.month-sales{font-weight:800;white-space:nowrap;font-size:.84rem}
+.best-month-card{display:flex;justify-content:space-between;align-items:center;gap:.8rem;background:#E1F3E9;border:2px solid #1C9C57;border-radius:.9rem;padding:.8rem 1rem;margin:.7rem 0}
+.best-month-card span{display:block;color:#0F5A31;font-size:.8rem;font-weight:700}
+.best-month-card b{font-family:var(--display);font-size:1.05rem;color:#0F5A31;text-align:right}
 .salesbtns{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin:1rem 0}
 .salesbtns .full{grid-column:1/-1}
 .sec3{font-family:var(--display);font-size:1.15rem;margin:1.4rem 0 .5rem}
@@ -726,14 +734,25 @@ function renderSales() {
     <h3 class="sec3">History</h3>${history || '<p class="empty">No sales or expenses yet. When you tap Sold on an item, the sale shows here.</p>'}</main>`;
 }
 
+function bestMonthIndex(months) {
+  let best = -1;
+  months.forEach((m, i) => { if (m.revenue > 0 && (best < 0 || m.revenue > months[best].revenue)) best = i; });
+  return best;
+}
+
 function renderReport() {
   const cy = new Date().getFullYear();
   const years = Array.from(new Set(state.sales.map((r) => new Date(r.sold_at).getFullYear()).concat(state.expenses.map((r) => expenseDate(r).getFullYear()), [cy]))).sort((a, b) => b - a);
   const y = years.indexOf(state.reportYear) >= 0 ? state.reportYear : years[0];
   const r = calc((d) => d.getFullYear() === y);
   const months = MONTHS.map((_, m) => calc((d) => d.getFullYear() === y && d.getMonth() === m));
-  const maxRev = Math.max(1, ...months.map((m) => m.revenue));
-  const monthRows = months.map((m, i) => `<div class="mrow"><span>${MONTHS[i]}</span><div class="bar"><i style="width:${Math.round(m.revenue / maxRev * 100)}%"></i></div><b>${esc(cash(m.net))}</b></div>`).join('');
+  const maxRev = Math.max(0, ...months.map((m) => m.revenue));
+  const monthRows = months.map((m, i) => {
+    const pct = maxRev > 0 ? Math.round(m.revenue / maxRev * 100) : 0;
+    const level = pct >= 70 ? 'high' : pct >= 35 ? 'mid' : '';
+    const isBest = bestMonthIndex(months) === i && m.revenue > 0;
+    return `<div class="month-row${isBest ? ' is-best' : ''}"><span class="month-name">${MONTHS[i]}</span><div class="month-track" role="img" aria-label="${MONTHS[i]} sales are ${pct}% of the highest month"><i class="month-fill ${level}" style="width:${pct}%"></i></div><b class="month-sales">${esc(cash(m.revenue))}</b></div>`;
+  }).join('');
   const byItem = {};
   r.sales.forEach((s) => { const e = byItem[s.item_title] || (byItem[s.item_title] = {title: s.item_title, revenue: 0, count: 0}); e.revenue += Number(s.amount) || 0; e.count++; });
   const top = Object.values(byItem).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
@@ -743,7 +762,7 @@ function renderReport() {
   const margin = r.revenue ? (r.net / r.revenue * 100) : 0;
   const ads = byKind.advertising || 0;
   const adShare = r.revenue ? (ads / r.revenue * 100) : 0;
-  let best = -1; months.forEach((m, i) => { if (m.revenue > 0 && (best < 0 || m.net > months[best].net)) best = i; });
+  let best = -1; months.forEach((m, i) => { if (m.revenue > 0 && (best < 0 || m.revenue > months[best].revenue)) best = i; });
   const line = (a, b) => `<div class="line"><span>${a}</span><b>${b}</b></div>`;
   const rc = reachOf(state.events, (d) => d.getFullYear() === y);
   const summary = 'ShopLink report ' + y + ' for ' + state.me.shop_name + '. Sales: ' + cash(r.revenue) + '. Net profit: ' + cash(r.net) + '. Number of sales: ' + r.count + '.';
@@ -751,8 +770,8 @@ function renderReport() {
   return `<main class="wrap"><button class="back" data-act="salesView" data-v="overview">‹ Back to Sales</button>
     <h2>Yearly report</h2><div class="chips" style="margin-top:.8rem">${chips}</div>
     ${line('Sales (revenue)', esc(cash(r.revenue)))}${line('Cost of goods sold', esc(cash(r.cogs)))}${line('Gross profit', esc(cash(r.gross)))}${line('Expenses', esc(cash(r.spent)))}${line('<b>Net profit</b>', '<b>' + esc(cash(r.net)) + '</b>')}
-    ${line('Number of sales', r.count)}${line('People who visited your shop', rc.visitors)}${line('Enquiries on WhatsApp', rc.enquiries)}${rc.enquiries ? line('Sales for every 100 enquiries', Math.round(r.count / rc.enquiries * 100)) : ''}${line('Profit margin', margin.toFixed(1) + '%')}${line('Advertising spend', esc(cash(ads)) + (r.revenue ? ' (' + adShare.toFixed(1) + '% of sales)' : ''))}${best >= 0 ? line('Best month', MONTHS[best] + ' (' + esc(cash(months[best].net)) + ' profit)') : ''}
-    <h3 class="sec3">Month by month</h3><p class="hint">Bar: sales. Number: net profit.</p>${monthRows}
+    ${line('Number of sales', r.count)}${line('People who visited your shop', rc.visitors)}${line('Enquiries on WhatsApp', rc.enquiries)}${rc.enquiries ? line('Sales for every 100 enquiries', Math.round(r.count / rc.enquiries * 100)) : ''}${line('Profit margin', margin.toFixed(1) + '%')}${line('Advertising spend', esc(cash(ads)) + (r.revenue ? ' (' + adShare.toFixed(1) + '% of sales)' : ''))}${best >= 0 ? `<div class="best-month-card"><div><span>BEST PERFORMING MONTH · SALES</span><b>${MONTHS[best]}</b></div><b>${esc(cash(months[best].revenue))}</b></div>` : ''}
+    <h3 class="sec3">Monthly sales performance</h3><p class="hint">Bars compare each month’s sales revenue. The longest bar represents the highest sales.</p>${monthRows}
     <h3 class="sec3">Best-selling items</h3>${top.map((t) => line(esc(t.title) + ' (' + t.count + ')', esc(cash(t.revenue)))).join('') || '<p class="muted">No sales this year yet.</p>'}
     <h3 class="sec3">Where the money went</h3>${kinds.map((k) => line(esc(EXP_LABEL[k] || k), esc(cash(byKind[k])))).join('') || '<p class="muted">No expenses this year yet.</p>'}
     <h3 class="sec3">Download reports</h3>
@@ -785,7 +804,34 @@ function exportReport(kind) {
   const r = calc((d) => d.getFullYear() === y);
   const base = 'ShopLink-' + y + '-';
   if (kind === 'pnl') {
-    downloadCsv(base + 'Profit-and-Loss.csv', [['ShopLink Profit and Loss', y], ['Business', state.me.shop_name], ['Item', 'Amount'], ['Sales revenue', r.revenue], ['Cost of goods sold', r.cogs], ['Gross profit', r.gross], ['Operating expenses', r.spent], ['Net profit', r.net], ['Number of sales', r.count]]);
+    const expenseTotals = {};
+    r.exp.forEach((expense) => {
+      const label = EXP_LABEL[expense.kind] || expense.kind || 'Other expenses';
+      expenseTotals[label] = (expenseTotals[label] || 0) + (Number(expense.amount) || 0);
+    });
+    const expenseLines = Object.keys(expenseTotals).sort().map((label) => [label, expenseTotals[label]]);
+    const rows = [
+      [state.me.shop_name || 'ShopLink'],
+      ['STATEMENT OF PROFIT OR LOSS'],
+      ['For the year ended 31 December ' + y],
+      [],
+      ['Particulars', 'Amount (GHC)'],
+      ['REVENUE', ''],
+      ['Sales revenue', r.revenue],
+      [],
+      ['COST OF SALES', ''],
+      ['Cost of goods sold', r.cogs],
+      ['GROSS PROFIT', r.gross],
+      [],
+      ['OPERATING EXPENSES', ''],
+      ...expenseLines,
+      ['Total operating expenses', r.spent],
+      [],
+      ['NET PROFIT', r.net],
+      [],
+      ['Number of sales', r.count]
+    ];
+    downloadCsv(base + 'Profit-and-Loss.csv', rows);
   } else if (kind === 'monthly') {
     const rows = [['Month', 'Sales revenue', 'Cost of goods sold', 'Gross profit', 'Expenses', 'Net profit', 'Number of sales']];
     MONTHS.forEach((month, i) => { const m = calc((d) => d.getFullYear() === y && d.getMonth() === i); rows.push([month + ' ' + y, m.revenue, m.cogs, m.gross, m.spent, m.net, m.count]); });
