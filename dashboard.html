@@ -755,7 +755,50 @@ function renderReport() {
     <h3 class="sec3">Month by month</h3><p class="hint">Bar: sales. Number: net profit.</p>${monthRows}
     <h3 class="sec3">Best-selling items</h3>${top.map((t) => line(esc(t.title) + ' (' + t.count + ')', esc(cash(t.revenue)))).join('') || '<p class="muted">No sales this year yet.</p>'}
     <h3 class="sec3">Where the money went</h3>${kinds.map((k) => line(esc(EXP_LABEL[k] || k), esc(cash(byKind[k])))).join('') || '<p class="muted">No expenses this year yet.</p>'}
-    <div class="salesbtns"><a class="btn wa sm full" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(summary)}">Share summary on WhatsApp</a></div></main>`;
+    <h3 class="sec3">Download reports</h3>
+    <p class="hint">Download your ${y} records as CSV files. You can open them in Excel or Google Sheets.</p>
+    <div class="salesbtns">
+      <button class="btn full" data-act="downloadReport" data-v="pnl">Download profit &amp; loss</button>
+      <button class="btn ghost full" data-act="downloadReport" data-v="monthly">Download monthly summary</button>
+      <button class="btn ghost full" data-act="downloadReport" data-v="sales">Download sales details</button>
+      <button class="btn ghost full" data-act="downloadReport" data-v="expenses">Download expense details</button>
+      <a class="btn wa sm full" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(summary)}">Share summary on WhatsApp</a>
+    </div></main>`;
+}
+
+function csvCell(value) {
+  const s = value == null ? '' : String(value);
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+function downloadCsv(filename, rows) {
+  const csv = '\uFEFF' + rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
+  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportReport(kind) {
+  const cy = new Date().getFullYear();
+  const years = Array.from(new Set(state.sales.map((r) => new Date(r.sold_at).getFullYear()).concat(state.expenses.map((r) => expenseDate(r).getFullYear()), [cy]))).sort((a, b) => b - a);
+  const y = years.indexOf(state.reportYear) >= 0 ? state.reportYear : years[0];
+  const r = calc((d) => d.getFullYear() === y);
+  const base = 'ShopLink-' + y + '-';
+  if (kind === 'pnl') {
+    downloadCsv(base + 'Profit-and-Loss.csv', [['ShopLink Profit and Loss', y], ['Business', state.me.shop_name], ['Item', 'Amount'], ['Sales revenue', r.revenue], ['Cost of goods sold', r.cogs], ['Gross profit', r.gross], ['Operating expenses', r.spent], ['Net profit', r.net], ['Number of sales', r.count]]);
+  } else if (kind === 'monthly') {
+    const rows = [['Month', 'Sales revenue', 'Cost of goods sold', 'Gross profit', 'Expenses', 'Net profit', 'Number of sales']];
+    MONTHS.forEach((month, i) => { const m = calc((d) => d.getFullYear() === y && d.getMonth() === i); rows.push([month + ' ' + y, m.revenue, m.cogs, m.gross, m.spent, m.net, m.count]); });
+    downloadCsv(base + 'Monthly-Summary.csv', rows);
+  } else if (kind === 'sales') {
+    const rows = [['Date', 'Item sold', 'Sales amount', 'Cost of goods sold', 'Profit']];
+    r.sales.forEach((sale) => rows.push([new Date(sale.sold_at).toLocaleDateString(), sale.item_title, Number(sale.amount) || 0, Number(sale.cost) || 0, (Number(sale.amount) || 0) - (Number(sale.cost) || 0)]));
+    downloadCsv(base + 'Sales-Details.csv', rows);
+  } else if (kind === 'expenses') {
+    const rows = [['Date', 'Category', 'Description', 'Amount']];
+    r.exp.forEach((expense) => rows.push([expense.spent_at, EXP_LABEL[expense.kind] || expense.kind, expense.description || '', Number(expense.amount) || 0]));
+    downloadCsv(base + 'Expense-Details.csv', rows);
+  }
 }
 
 /* ---------- render ---------- */
@@ -834,6 +877,7 @@ document.addEventListener('click', (e) => {
   else if (act === 'openExpense') { state.sheet = {type: 'expense'}; render(); }
   else if (act === 'salesView') { state.salesView = v; render(); window.scrollTo(0, 0); }
   else if (act === 'year') { state.reportYear = Number(v); render(); }
+  else if (act === 'downloadReport') { exportReport(v); }
   else if (act === 'delTxn') {
     if (state.pendingDel !== v) { state.pendingDel = v; render(); setTimeout(() => { if (state.pendingDel === v) { state.pendingDel = null; render(); } }, 3500); return; }
     guard(() => deleteEntry(el.dataset.kind, v));
