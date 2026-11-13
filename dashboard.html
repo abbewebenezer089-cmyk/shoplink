@@ -150,6 +150,7 @@ a.btn.wa,.btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
 .phone input{flex:1;min-width:0}
 .pwbox{font-family:ui-monospace,Menlo,monospace;font-size:1.6rem;font-weight:800;letter-spacing:.08em;background:#fff;border:2px dashed var(--ink);border-radius:.8rem;padding:.9rem;text-align:center;overflow-wrap:anywhere;margin:.8rem 0}
 .seg.four button{font-size:.8rem;padding:.6rem .1rem}
+.seg.five button{font-size:.72rem;padding:.55rem .08rem;min-width:0;overflow-wrap:anywhere}
 .termgrid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
 .quick{display:flex;gap:.5rem}
 .plan-note{background:var(--marigold-soft);border-radius:.8rem;padding:.7rem .85rem;margin:.8rem 0;font-size:.92rem}
@@ -305,6 +306,44 @@ const MAXSEC = 60;
 const MAXRAW = 250 * 1024 * 1024;
 const money = (n, cur) => (n == null || n === '') ? '' : (cur ? cur + ' ' : '') + Number(n).toLocaleString('en-US');
 const mediaUrl = (p) => sb.storage.from('media').getPublicUrl(p).data.publicUrl;
+
+// Remove files from Supabase Storage and never silently ignore a failed deletion.
+async function removeMediaFiles(paths) {
+  const clean = [...new Set((paths || []).filter(Boolean))];
+  for (let i = 0; i < clean.length; i += 100) {
+    const { error } = await sb.storage.from('media').remove(clean.slice(i, i + 100));
+    if (error) throw new Error('Could not delete stored media: ' + error.message);
+  }
+}
+
+// Send private storage-cleanup results to the admin-only log. Sellers cannot read this table.
+async function logStorageCleanup(details) {
+  const { error } = await sb.rpc('record_storage_cleanup', {
+    p_seller_id: details.sellerId,
+    p_seller_name: details.sellerName || 'Seller',
+    p_item_title: details.itemTitle || 'Deleted item',
+    p_file_paths: details.paths || [],
+    p_status: details.status,
+    p_error_message: details.errorMessage || null
+  });
+  if (error) console.error('ShopLink admin storage log could not be saved:', error.message);
+}
+
+async function cleanupDeletedItem({sellerId, sellerName, itemTitle, paths}) {
+  const clean = [...new Set((paths || []).filter(Boolean))];
+  if (!clean.length) {
+    await logStorageCleanup({sellerId, sellerName, itemTitle, paths: [], status: 'complete'});
+    return true;
+  }
+  try {
+    await removeMediaFiles(clean);
+    await logStorageCleanup({sellerId, sellerName, itemTitle, paths: clean, status: 'complete'});
+    return true;
+  } catch (err) {
+    await logStorageCleanup({sellerId, sellerName, itemTitle, paths: clean, status: 'failed', errorMessage: err.message});
+    return false;
+  }
+}
 const initial = (t) => (String(t || '').trim()[0] || '?').toUpperCase();
 function logoHtml(p, size, id) {
   const a = id ? ` id="${id}"` : '';
@@ -335,7 +374,7 @@ async function shrink(file, maxSide, type, quality) {
   return new Promise((resolve, reject) => canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Could not prepare the picture.')), type, quality));
 }
 
-const state = {events:[], sales:[], expenses:[], costs:{}, salesView:'overview', reportYear:null, highlight:new URLSearchParams(location.search).get('item') || (function () { try { return sessionStorage.getItem('shoplink-item'); } catch (e) { return null; } })(), hlDone:false, me:null, role:null, tab:null, filter:'all', sellers:[], counts:{}, categories:[], items:[], messages:[], thread:null, sheet:null, pendingDel:null, refocus:false, files:[], promoVideos:[], pf:{}, prefill:''};
+const state = {events:[], sales:[], expenses:[], costs:{}, salesView:'overview', reportYear:null, highlight:new URLSearchParams(location.search).get('item') || (function () { try { return sessionStorage.getItem('shoplink-item'); } catch (e) { return null; } })(), hlDone:false, me:null, role:null, tab:null, filter:'all', sellers:[], counts:{}, categories:[], items:[], messages:[], thread:null, sheet:null, pendingDel:null, refocus:false, files:[], promoVideos:[], storageLogs:[], lastStorageNotice:null, pf:{}, prefill:''};
 
 /* ---------- loading data ---------- */
 async function ok(promise) {
@@ -353,15 +392,17 @@ async function loadMessages() {
 }
 
 async function loadAdmin() {
-  const [sellers, cats, media, promoVideos, events] = await Promise.all([
+  const [sellers, cats, media, promoVideos, events, storageLogs] = await Promise.all([
     ok(sb.from('profiles').select('*').neq('role', 'admin').order('created_at', {ascending:false})),
     ok(sb.from('categories').select('*').order('sort')),
     ok(sb.from('item_media').select('seller_id,kind')),
     ok(sb.from('seller_videos').select('seller_id')),
     soft(sb.from('events').select('seller_id,kind,visitor,created_at').order('created_at', {ascending: false}).limit(20000)),
+    ok(sb.from('storage_deletion_logs').select('*').order('created_at', {ascending:false}).limit(200)),
     loadMessages()
   ]);
   state.events = events;
+  state.storageLogs = storageLogs;
   state.sellers = sellers;
   state.categories = cats;
   state.counts = {};
@@ -452,6 +493,50 @@ function renderSellers() {
   const activity = `<p class="notice" style="margin-top:1.2rem"><b>Activity on ShopLink</b><br>This month: ${mon.visitors} visitors, ${mon.views} items viewed, ${mon.enquiries} WhatsApp enquiries.<br>All time: ${all.visitors} visitors, ${all.views} items viewed, ${all.enquiries} WhatsApp enquiries.</p>`;
   return `<main class="wrap">${activity}<p class="lead" style="margin-top:0">Every seller who registers appears here as Pending until you activate them.</p>
     <div class="chips">${chips}</div><div class="sellers">${cards || '<p class="empty">No sellers here yet.</p>'}</div></main>`;
+}
+
+function renderAdminStorage() {
+  const logs = state.storageLogs || [];
+  const failed = logs.filter((x) => x.status === 'failed');
+  const rows = logs.map((x) => {
+    const status = x.status === 'complete' ? '<span class="pill ok">Files removed</span>' : '<span class="pill off">Needs attention</span>';
+    const paths = Array.isArray(x.file_paths) ? x.file_paths : [];
+    const pathList = paths.length ? `<details style="margin:.5rem 0"><summary class="muted">View private storage file paths</summary><div style="overflow-wrap:anywhere;font-size:.82rem;margin-top:.4rem">${paths.map((path) => `<div><code>${esc(path)}</code></div>`).join('')}</div></details>` : '';
+    return `<article class="seller"><div class="acct-top"><div><h3>${esc(x.item_title || 'Deleted item')}</h3><p class="muted">${esc(x.seller_name || 'Seller')} · ${fmtTime(x.created_at)}</p></div>${status}</div><p class="muted" style="margin:.6rem 0">${paths.length} file(s) · ${esc(x.error_message || (x.status === 'complete' ? 'Supabase confirmed the storage deletion.' : 'Storage deletion needs to be retried.'))}</p>${pathList}${x.status === 'failed' ? `<button class="btn sm" data-act="retryStorage" data-v="${x.id}">Retry file deletion</button>` : ''}</article>`;
+  }).join('');
+  return `<main class="wrap"><div class="notice"><b>Private admin area.</b><br>Sellers cannot view these storage records. Failed deletions: ${failed.length}.</div><p class="lead">This log records whether product media was actually removed from Supabase Storage. Successful entries are kept as an audit history.</p><div class="sellers">${rows || '<p class="empty">No storage activity has been recorded yet.</p>'}</div></main>`;
+}
+
+async function retryStorageDeletion(id) {
+  const row = (state.storageLogs || []).find((x) => x.id === id);
+  if (!row || row.status !== 'failed') return;
+  const paths = Array.isArray(row.file_paths) ? row.file_paths : [];
+  try {
+    await removeMediaFiles(paths);
+    const { error } = await sb.from('storage_deletion_logs').update({status:'complete', error_message:null, completed_at:new Date().toISOString(), retry_count:(row.retry_count || 0) + 1}).eq('id', id);
+    if (error) throw new Error(error.message);
+    await loadAdmin(); render(); toast('Storage cleanup completed successfully.');
+  } catch (err) {
+    const { error } = await sb.from('storage_deletion_logs').update({error_message:err.message, retry_count:(row.retry_count || 0) + 1}).eq('id', id);
+    if (error) console.error(error.message);
+    await loadAdmin(); render(); toast('The file is still in storage. You can retry again.');
+  }
+}
+
+function startAdminStorageNotifications() {
+  if (state.role !== 'admin' || window.shopLinkStoragePoll) return;
+  window.shopLinkStoragePoll = setInterval(async () => {
+    try {
+      const { data, error } = await sb.from('storage_deletion_logs').select('id,status,item_title,seller_name,created_at').order('created_at', {ascending:false}).limit(1);
+      if (error || !data || !data.length) return;
+      const latest = data[0];
+      if (state.lastStorageNotice && latest.id !== state.lastStorageNotice) {
+        toast((latest.status === 'failed' ? '⚠️ Storage cleanup needs attention: ' : '🔔 Storage file deleted: ') + (latest.item_title || 'Product'));
+        if (state.tab === 'storage') { await loadAdmin(); render(); }
+      }
+      state.lastStorageNotice = latest.id;
+    } catch (e) { /* try again on the next poll */ }
+  }, 12000);
 }
 
 function renderAdminMessages() {
@@ -703,15 +788,16 @@ async function saveCost(itemId, raw) {
 
 async function sellItem(f) {
   const err = $('sell-err'), id = state.sheet.id;
+  const soldItem = state.items.find((x) => x.id === id);
   const amount = Number(f.get('amount')), costRaw = String(f.get('cost')).trim();
   if (!(amount >= 0) || String(f.get('amount')).trim() === '') { err.textContent = 'Enter the amount you received.'; return; }
   err.textContent = 'Saving...';
   const { data, error } = await sb.rpc('sell_item', {p_item: id, p_amount: amount, p_cost: costRaw === '' ? null : Number(costRaw)});
   if (error) { err.textContent = ''; throw new Error(error.message); }
   const files = data || [];
-  for (let i = 0; i < files.length; i += 100) await sb.storage.from('media').remove(files.slice(i, i + 100));
+  const cleanupOk = await cleanupDeletedItem({sellerId:state.me.id, sellerName:state.me.shop_name || state.me.full_name, itemTitle:soldItem ? soldItem.title : 'Sold item', paths:files});
   state.sheet = null; await loadSeller(); render();
-  toast('Sale recorded. The item and its pictures were removed.');
+  toast('Sale recorded. Item removed from your shop.');
 }
 
 async function addExpense(f) {
@@ -899,15 +985,16 @@ function exportReport(kind) {
 /* ---------- render ---------- */
 function render() {
   const admin = state.role === 'admin';
-  const tabs = admin ? [['sellers', 'Sellers'], ['messages', 'Messages'], ['categories', 'Categories'], ['profile', 'Profile']] : [['shop', 'My shop'], ['sales', 'Sales'], ['profile', 'Profile'], ['messages', 'Messages']];
+  const tabs = admin ? [['sellers', 'Sellers'], ['storage', 'Storage'], ['messages', 'Messages'], ['categories', 'Categories'], ['profile', 'Profile']] : [['shop', 'My shop'], ['sales', 'Sales'], ['profile', 'Profile'], ['messages', 'Messages']];
   const pending = admin ? state.sellers.filter((s) => effStatus(s) === 'pending').length : 0;
   $('seg').style.gridTemplateColumns = 'repeat(' + tabs.length + ',1fr)';
   $('seg').classList.toggle('four', tabs.length === 4);
-  const ICON = {sellers: '👥', messages: '💬', categories: '🗂️', profile: '👤', shop: '🏪', sales: '📊'};
+  $('seg').classList.toggle('five', tabs.length === 5);
+  const ICON = {sellers: '👥', storage: '🗄️', messages: '💬', categories: '🗂️', profile: '👤', shop: '🏪', sales: '📊'};
   $('seg').innerHTML = tabs.map(([k, l]) =>
-    `<button role="tab" aria-selected="${state.tab === k}" data-act="tab" data-v="${k}"><span class="ti" aria-hidden="true">${ICON[k] || ''}</span><span>${l}</span>${k === 'sellers' && pending ? `<span class="badge">${pending}</span>` : ''}</button>`).join('');
+    `<button role="tab" aria-selected="${state.tab === k}" data-act="tab" data-v="${k}"><span class="ti" aria-hidden="true">${ICON[k] || ''}</span><span>${l}</span>${k === 'sellers' && pending ? `<span class="badge">${pending}</span>` : ''}${k === 'storage' && state.storageLogs.filter((x) => x.status === 'failed').length ? `<span class="badge">${state.storageLogs.filter((x) => x.status === 'failed').length}</span>` : ''}</button>`).join('');
   let html;
-  if (admin) html = state.tab === 'sellers' ? renderSellers() : state.tab === 'messages' ? renderAdminMessages() : state.tab === 'categories' ? renderCategories() : renderAdminProfile();
+  if (admin) html = state.tab === 'sellers' ? renderSellers() : state.tab === 'storage' ? renderAdminStorage() : state.tab === 'messages' ? renderAdminMessages() : state.tab === 'categories' ? renderCategories() : renderAdminProfile();
   else html = state.tab === 'shop' ? renderShop() : state.tab === 'sales' ? renderSales() : state.tab === 'profile' ? renderProfile() : renderSellerMessages();
   $('app').innerHTML = topRow() + html;
   $('overlay').innerHTML = renderSheet();
@@ -933,6 +1020,7 @@ document.addEventListener('click', (e) => {
   const act = el.dataset.act, v = el.dataset.v;
   if (act === 'tab') { state.tab = v; state.thread = null; state.pendingDel = null; if (state.role !== 'admin' && v === 'shop') guard(refresh); else render(); window.scrollTo(0, 0); }
   else if (act === 'filter') { state.filter = v; render(); }
+  else if (act === 'retryStorage') guard(() => retryStorageDeletion(v));
   else if (act === 'activate') guard(async () => {
     const months = Number(el.dataset.m);
     await ok(sb.rpc('activate_seller', {p_id: v, p_months: months}).then((r) => ({data: [], error: r.error})));
@@ -963,7 +1051,7 @@ document.addEventListener('click', (e) => {
   else if (act === 'openPromo') { state.files = []; state.sheet = {type: 'promo'}; render(); }
   else if (act === 'delPromo') {
     if (state.pendingDel !== 'promo-' + v) { state.pendingDel = 'promo-' + v; render(); setTimeout(() => { if (state.pendingDel === 'promo-' + v) { state.pendingDel = null; render(); } }, 3500); return; }
-    guard(async () => { const video = state.promoVideos.find((x) => x.id === v); if (!video) return; const {error} = await sb.from('seller_videos').delete().eq('id', v); if (error) throw new Error(error.message); await sb.storage.from('media').remove([video.path]); state.pendingDel = null; await loadSeller(); render(); toast('Video deleted.'); });
+    guard(async () => { const video = state.promoVideos.find((x) => x.id === v); if (!video) return; const {error} = await sb.from('seller_videos').delete().eq('id', v); if (error) throw new Error(error.message); await cleanupDeletedItem({sellerId:state.me.id, sellerName:state.me.shop_name || state.me.full_name, itemTitle:'Promotional video', paths:[video.path]}); state.pendingDel = null; await loadSeller(); render(); toast('Video removed from your shop.'); });
   }
   else if (act === 'openEdit') { state.sheet = {type: 'edit', id: v}; render(); }
   else if (act === 'rmfile') { const x = state.files.splice(Number(v), 1)[0]; if (x) { x.cancelled = true; if (x.url) URL.revokeObjectURL(x.url); } drawFiles(); }
@@ -985,22 +1073,22 @@ document.addEventListener('click', (e) => {
   else if (act === 'delMine') {
     if (state.pendingDel !== v) { state.pendingDel = v; render(); setTimeout(() => { if (state.pendingDel === v) { state.pendingDel = null; render(); } }, 3500); return; }
     guard(async () => {
-      const it = state.items.find((x) => x.id === v);
+      const it = state.items.find((x) => x.id === v); if (!it) return;
       const paths = (it.item_media || []).map((m) => m.path);
-      if (paths.length) await sb.storage.from('media').remove(paths);
       const { error } = await sb.from('items').delete().eq('id', v);
       state.pendingDel = null;
       if (error) throw new Error(error.message);
-      await loadSeller(); render(); toast('Item deleted. Space freed up.');
+      await cleanupDeletedItem({sellerId:state.me.id, sellerName:state.me.shop_name || state.me.full_name, itemTitle:it.title, paths});
+      await loadSeller(); render(); toast('Item deleted.');
     });
   }
   else if (act === 'delItem') {
     if (state.pendingDel !== v) { state.pendingDel = v; render(); setTimeout(() => { if (state.pendingDel === v) { state.pendingDel = null; render(); } }, 3500); return; }
     guard(async () => {
-      const item = state.sheet.items.find((i) => i.id === v);
-      const paths = item.item_media.map((m) => m.path);
-      if (paths.length) await sb.storage.from('media').remove(paths);
+      const item = state.sheet.items.find((i) => i.id === v); if (!item) return;
+      const paths = (item.item_media || []).map((m) => m.path);
       await ok(sb.from('items').delete().eq('id', v).then((r) => ({data: [], error: r.error})));
+      await cleanupDeletedItem({sellerId:state.sheet.id, sellerName:sellerName(state.sheet.id), itemTitle:item.title, paths});
       state.sheet.items = state.sheet.items.filter((i) => i.id !== v); state.pendingDel = null;
       await loadAdmin(); render(); toast('Item removed.');
     });
@@ -1086,10 +1174,12 @@ async function deleteAccount(f) {
   const id = state.sheet.id, s = state.sellers.find((x) => x.id === id), name = s.shop_name;
   err.textContent = 'Deleting...';
   const media = await ok(sb.from('item_media').select('path').eq('seller_id', id));
-  const paths = media.map((m) => m.path);
+  const promo = await ok(sb.from('seller_videos').select('path').eq('seller_id', id));
+  const paths = [...media.map((m) => m.path), ...promo.map((v) => v.path)];
   if (s.logo_path) paths.push(s.logo_path);
   if (s.photo_path) paths.push(s.photo_path);
-  for (let i = 0; i < paths.length; i += 100) await sb.storage.from('media').remove(paths.slice(i, i + 100));
+  // Finish storage cleanup before deleting the account and its database records.
+  await removeMediaFiles(paths);
   const { error } = await sb.rpc('admin_delete_account', {p_id: id});
   if (error) { err.textContent = ''; throw new Error(error.message); }
   state.sheet = null; await refresh(); toast(name + ' was deleted for good.');
@@ -1445,8 +1535,9 @@ setInterval(async () => {
     state.role = me.role === 'admin' ? 'admin' : 'seller';
     state.tab = state.role === 'admin' ? 'sellers' : 'shop';
     $('who').textContent = state.role === 'admin' ? 'Admin' : 'Seller';
-    if (state.role === 'admin') await loadAdmin(); else await loadSeller();
+    if (state.role === 'admin') { await loadAdmin(); state.lastStorageNotice = state.storageLogs[0] ? state.storageLogs[0].id : null; } else await loadSeller();
     render();
+    if (state.role === 'admin') startAdminStorageNotifications();
   } catch (err) {
     $('app').innerHTML = `<main class="wrap"><p class="err">${esc(err.message || err)}</p><button class="btn" onclick="location.reload()">Try again</button></main>`;
   }
