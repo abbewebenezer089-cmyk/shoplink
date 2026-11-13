@@ -43,8 +43,17 @@ h1,h2,h3{font-family:var(--display);letter-spacing:-.01em;margin:0}
 .hbtns{display:flex;gap:.45rem;flex:none}
 .pillbtn{display:inline-flex;align-items:center;border:2px solid var(--ink);background:#fff;color:var(--ink);font-weight:800;border-radius:99px;padding:.4rem .85rem;font-size:.88rem;min-height:2.5rem;text-decoration:none}
 .pillbtn.wa{border-color:var(--wa);color:var(--wa)}
-.row{display:flex;gap:.85rem;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -1.25rem;padding:.2rem 1.25rem 1rem;scrollbar-width:none}
-.row::-webkit-scrollbar{display:none}
+/* Product rows: touch-swipe on phones and visible controls on laptops */
+.row{display:flex;gap:.85rem;overflow-x:auto;overflow-y:hidden;scroll-behavior:smooth;scroll-snap-type:x mandatory;margin:0 -1.25rem;padding:.2rem 1.25rem 1rem;scrollbar-width:thin;scrollbar-color:var(--ink-soft) var(--line);overscroll-behavior-x:contain}
+.row::-webkit-scrollbar{height:9px;display:block}
+.row::-webkit-scrollbar-track{background:var(--line);border-radius:99px}
+.row::-webkit-scrollbar-thumb{background:var(--ink-soft);border-radius:99px}
+.row-tools{display:flex;justify-content:flex-end;gap:.45rem;margin:-.15rem 0 .4rem}
+.scroll-btn{display:inline-grid;place-items:center;width:2.35rem;height:2.35rem;border:2px solid var(--ink);border-radius:50%;background:#fff;color:var(--ink);font-size:1.35rem;font-weight:800;line-height:1}
+.scroll-btn:hover{background:var(--ink);color:#fff}
+.scroll-btn:disabled{opacity:.35;cursor:not-allowed}
+@media(min-width:700px){.wrap{width:min(100% - 3rem,76rem)}.card.h{flex-basis:13rem}}
+@media(max-width:600px){.row{scrollbar-width:none}.row::-webkit-scrollbar{display:none}.scroll-btn{width:2.1rem;height:2.1rem}}
 
 .card.h{flex:0 0 11.5rem;scroll-snap-align:start;padding:.65rem;background:var(--card);border:2px solid var(--line);border-radius:1rem;cursor:pointer}
 .card.h h3{font-size:1.05rem;margin:.55rem 0 .1rem}
@@ -326,7 +335,7 @@ function render() {
     if (!list.length && !only) return '';
     return `<section class="shop"><div class="shop-head"><div class="who"><button class="avatar" data-act="info" data-v="${s.id}" aria-label="See who runs ${esc(s.shop_name)}">${photoHtml(s, 'hero')}${logoHtml(s, 'badge')}</button><div><h2>${esc(s.shop_name)}</h2><p class="muted">${esc(s.shop_type)}, ${list.length} item${list.length === 1 ? '' : 's'}</p>${s.location ? `<p class="muted">📍 ${esc(s.location)}</p>` : ''}<span class="owner">${esc(s.owner_name)}</span></div></div>
       <div class="hbtns"><button class="pillbtn" data-act="info" data-v="${s.id}" aria-label="Shop info for ${esc(s.shop_name)}">Info</button><a class="pillbtn wa" data-enq="" data-shop="${s.id}" target="_blank" rel="noopener" href="https://wa.me/${waNumber(s.whatsapp, s.country)}" aria-label="Chat with ${esc(s.shop_name)} on WhatsApp">Chat</a></div></div>
-      ${list.length ? `<div class="row">${list.map((i) => card(i, s)).join('')}</div>` : '<p class="muted">No items in this category yet.</p>'}</section>`;
+      ${list.length ? `<div class="row-tools" aria-label="Scroll products"><button class="scroll-btn" type="button" data-act="scroll-row" data-dir="-1" aria-label="Scroll products left">‹</button><button class="scroll-btn" type="button" data-act="scroll-row" data-dir="1" aria-label="Scroll products right">›</button></div><div class="row">${list.map((i) => card(i, s)).join('')}</div>` : '<p class="muted">No items in this category yet.</p>'}</section>`;
   }).join('');
 
   let body;
@@ -377,6 +386,12 @@ document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   if (el.classList.contains('scrim') && e.target !== el) return;
   const act = el.dataset.act, v = el.dataset.v;
+  if (act === 'scroll-row') {
+    const shop = el.closest('.shop');
+    const row = shop && shop.querySelector('.row');
+    if (row) row.scrollBy({left: Number(el.dataset.dir || 1) * Math.max(260, row.clientWidth * 0.8), behavior: 'smooth'});
+    return;
+  }
   if (act === 'cat') { state.cat = v; render(); }
   else if (act === 'place') { setQuery(v); }
   else if (act === 'clearq') { setQuery(''); }
