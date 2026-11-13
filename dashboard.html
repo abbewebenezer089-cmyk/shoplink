@@ -873,6 +873,9 @@ function bestMonthIndex(months) {
 }
 
 function renderReport() {
+  // Define the row renderer before building product revenue rows.
+  // Keeping this above its first use prevents a temporal-dead-zone error.
+  const line = (a, b) => `<div class="line"><span>${a}</span><b>${b}</b></div>`;
   const cy = new Date().getFullYear();
   const years = Array.from(new Set(state.sales.map((r) => new Date(r.sold_at).getFullYear()).concat(state.expenses.map((r) => expenseDate(r).getFullYear()), [cy]))).sort((a, b) => b - a);
   const y = years.indexOf(state.reportYear) >= 0 ? state.reportYear : years[0];
@@ -911,7 +914,6 @@ function renderReport() {
   const ads = byKind.advertising || 0;
   const adShare = r.revenue ? (ads / r.revenue * 100) : 0;
   let best = -1; months.forEach((m, i) => { if (m.revenue > 0 && (best < 0 || m.revenue > months[best].revenue)) best = i; });
-  const line = (a, b) => `<div class="line"><span>${a}</span><b>${b}</b></div>`;
   const rc = reachOf(state.events, (d) => d.getFullYear() === y);
   const summary = 'ShopLink report ' + y + ' for ' + state.me.shop_name + '. Sales: ' + cash(r.revenue) + '. Net profit: ' + cash(r.net) + '. Number of sales: ' + r.count + '.';
   const chips = years.map((yy) => `<button class="chip" aria-pressed="${yy === y}" data-act="year" data-v="${yy}">${yy}</button>`).join('');
