@@ -419,7 +419,7 @@ async function loadAdmin() {
 async function loadSeller() {
   const [cats, items, sales, expenses, costs, events, promoVideos] = await Promise.all([
     ok(sb.from('categories').select('*').order('sort')),
-    ok(sb.from('items').select('id,title,price,note,status,category_id,created_at,item_media(id,kind,path,created_at)').eq('seller_id', state.me.id).order('created_at', {ascending: false})),
+    ok(sb.from('items').select('id,product_code,title,price,note,status,category_id,created_at,item_media(id,kind,path,created_at)').eq('seller_id', state.me.id).order('created_at', {ascending: false})),
     soft(sb.from('sales').select('*').eq('seller_id', state.me.id).order('sold_at', {ascending: false})),
     soft(sb.from('expenses').select('*').eq('seller_id', state.me.id).order('spent_at', {ascending: false})),
     soft(sb.from('item_costs').select('item_id,cost_price').eq('seller_id', state.me.id)),
@@ -693,8 +693,10 @@ const NOTES = {
   suspended: 'Your account is suspended. Please contact the admin in Messages.'
 };
 
-function productCode(id) {
-  return id ? 'SL-PRD-' + String(id).toUpperCase() : 'Not linked';
+function productCode(itemOrId) {
+  if (!itemOrId) return 'Not linked';
+  if (typeof itemOrId === 'object') return itemOrId.product_code || 'Code pending';
+  return 'SL-' + String(itemOrId).replace(/-/g, '').slice(0, 6).toUpperCase();
 }
 
 function itemCard(i, active) {
@@ -704,7 +706,7 @@ function itemCard(i, active) {
     ? `<video src="${esc(mediaUrl(m.path))}" controls playsinline preload="metadata"></video>`
     : `<img src="${esc(mediaUrl(m.path))}" alt="" loading="lazy">`}<span class="count">${k + 1} of ${media.length}</span></div>`).join('');
   return `<article class="card v${state.highlight === i.id ? ' hl' : ''}" id="item-${i.id}"><div class="tile-wrap"><div class="pics">${pics}</div>${sold ? '<span class="stamp">Sold</span>' : ''}</div>
-    <div class="body">${state.highlight === i.id ? '<span class="hl-badge">A customer asked about this item</span>' : ''}<h3>${esc(i.title)}</h3><p class="muted">${esc(cat ? cat.name : '')}</p><p class="hint">Product ID: ${esc(productCode(i.id))}</p>
+    <div class="body">${state.highlight === i.id ? '<span class="hl-badge">A customer asked about this item</span>' : ''}<h3>${esc(i.title)}</h3><p class="muted">${esc(cat ? cat.name : '')}</p><p class="hint">Product ID: ${esc(productCode(i))}</p>
     ${i.price != null ? `<p class="price">${esc(money(i.price, curOf(state.me)))}</p>` : ''}${i.note ? `<span class="note">${esc(i.note)}</span>` : ''}
     <div class="actions">
       <button class="btn sm" data-act="sellSheet" data-v="${i.id}">Sold</button>
