@@ -6,6 +6,10 @@
 <title>ShopLink dashboard</title>
 <meta name="theme-color" content="#1E2347">
 <link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ShopLink">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="logo.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -211,6 +215,7 @@ body{padding-bottom:4.75rem}
 .brandrow img{width:1.8rem;height:1.8rem}
 .brand{font-size:1.1rem}
 @media (max-width:430px){.tag{display:none}}
+@media (min-width:700px){.wrap{width:min(100% - 4rem,64rem)}}
 .toprow{display:flex;justify-content:space-between;align-items:center;padding-top:.9rem;padding-bottom:0}
 .pillbtn{border:2px solid var(--ink);background:#fff;color:var(--ink);font-weight:800;font-size:1rem;border-radius:99px;padding:.5rem 1.2rem;min-height:2.9rem}
 .pillbtn.red{border-color:var(--chili);color:var(--chili)}
@@ -225,6 +230,13 @@ body{padding-bottom:4.75rem}
 .report-table tfoot td{font-weight:800;background:var(--soft)}
 .report-empty{padding:.8rem;color:var(--muted);font-size:.9rem}
 
+
+/* Wider dashboard layout on laptops and desktop screens; mobile layout remains unchanged. */
+@media (min-width: 900px) {
+  .wrap { width: min(100% - 4rem, 76rem); }
+  .sheet { width: min(100% - 4rem, 60rem); }
+}
+.promo-manager{margin:1.2rem 0;padding:1rem;background:#fff;border:2px solid var(--line);border-radius:1rem}.section-head{display:flex;justify-content:space-between;align-items:center;gap:.8rem;margin-bottom:.8rem}.promo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.8rem}.promo-card{min-width:0;border:1px solid var(--line);border-radius:.8rem;padding:.5rem}.promo-card video{display:block;width:100%;max-height:240px;object-fit:contain;background:#111;border-radius:.55rem;margin-bottom:.5rem}.promo-card .btn{width:100%}
 </style>
 </head>
 <body>
@@ -289,7 +301,7 @@ function toast(msg) {
 const DEFAULT_CUR = cfg.CURRENCY || '';
 const curOf = (p) => (p && p.currency) || DEFAULT_CUR;
 const MAXVID = 8 * 1024 * 1024;
-const MAXSEC = 65;
+const MAXSEC = 60;
 const MAXRAW = 250 * 1024 * 1024;
 const money = (n, cur) => (n == null || n === '') ? '' : (cur ? cur + ' ' : '') + Number(n).toLocaleString('en-US');
 const mediaUrl = (p) => sb.storage.from('media').getPublicUrl(p).data.publicUrl;
@@ -323,7 +335,7 @@ async function shrink(file, maxSide, type, quality) {
   return new Promise((resolve, reject) => canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Could not prepare the picture.')), type, quality));
 }
 
-const state = {events:[], sales:[], expenses:[], costs:{}, salesView:'overview', reportYear:null, highlight:new URLSearchParams(location.search).get('item') || (function () { try { return sessionStorage.getItem('shoplink-item'); } catch (e) { return null; } })(), hlDone:false, me:null, role:null, tab:null, filter:'all', sellers:[], counts:{}, categories:[], items:[], messages:[], thread:null, sheet:null, pendingDel:null, refocus:false, files:[], pf:{}, prefill:''};
+const state = {events:[], sales:[], expenses:[], costs:{}, salesView:'overview', reportYear:null, highlight:new URLSearchParams(location.search).get('item') || (function () { try { return sessionStorage.getItem('shoplink-item'); } catch (e) { return null; } })(), hlDone:false, me:null, role:null, tab:null, filter:'all', sellers:[], counts:{}, categories:[], items:[], messages:[], thread:null, sheet:null, pendingDel:null, refocus:false, files:[], promoVideos:[], pf:{}, prefill:''};
 
 /* ---------- loading data ---------- */
 async function ok(promise) {
@@ -341,10 +353,11 @@ async function loadMessages() {
 }
 
 async function loadAdmin() {
-  const [sellers, cats, media, events] = await Promise.all([
+  const [sellers, cats, media, promoVideos, events] = await Promise.all([
     ok(sb.from('profiles').select('*').neq('role', 'admin').order('created_at', {ascending:false})),
     ok(sb.from('categories').select('*').order('sort')),
     ok(sb.from('item_media').select('seller_id,kind')),
+    ok(sb.from('seller_videos').select('seller_id')),
     soft(sb.from('events').select('seller_id,kind,visitor,created_at').order('created_at', {ascending: false}).limit(20000)),
     loadMessages()
   ]);
@@ -356,21 +369,27 @@ async function loadAdmin() {
     const c = state.counts[m.seller_id] || (state.counts[m.seller_id] = {image:0, video:0});
     c[m.kind]++;
   });
+  promoVideos.forEach((m) => {
+    const c = state.counts[m.seller_id] || (state.counts[m.seller_id] = {image:0, video:0});
+    c.video++;
+  });
 }
 
 async function loadSeller() {
-  const [cats, items, sales, expenses, costs, events] = await Promise.all([
+  const [cats, items, sales, expenses, costs, events, promoVideos] = await Promise.all([
     ok(sb.from('categories').select('*').order('sort')),
     ok(sb.from('items').select('id,title,price,note,status,category_id,created_at,item_media(id,kind,path,created_at)').eq('seller_id', state.me.id).order('created_at', {ascending: false})),
     soft(sb.from('sales').select('*').eq('seller_id', state.me.id).order('sold_at', {ascending: false})),
     soft(sb.from('expenses').select('*').eq('seller_id', state.me.id).order('spent_at', {ascending: false})),
     soft(sb.from('item_costs').select('item_id,cost_price').eq('seller_id', state.me.id)),
     soft(sb.from('events').select('kind,visitor,item_title,created_at').eq('seller_id', state.me.id).order('created_at', {ascending: false}).limit(5000)),
+    ok(sb.from('seller_videos').select('id,path,created_at').eq('seller_id', state.me.id).order('created_at', {ascending: false})),
     loadMessages()
   ]);
   state.events = events;
   state.categories = cats;
   state.items = items;
+  state.promoVideos = promoVideos;
   state.sales = sales;
   state.expenses = expenses;
   state.costs = {};
@@ -379,6 +398,7 @@ async function loadSeller() {
 function usage() {
   const u = {image: 0, video: 0};
   state.items.forEach((i) => (i.item_media || []).forEach((m) => { u[m.kind === 'video' ? 'video' : 'image']++; }));
+  u.video += (state.promoVideos || []).length;
   return u;
 }
 
@@ -545,13 +565,21 @@ function renderSheet() {
     const s = state.sellers.find((x) => x.id === sh.id), c = state.counts[s.id] || {image: 0, video: 0};
     return `<div class="scrim" data-act="closeSheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="Picture limit"><div class="sheet-head"><h2>Picture limit</h2><button class="x" data-act="closeSheet" aria-label="Close">×</button></div>
     <p class="muted">${esc(s.shop_name)} has used ${c.image} of ${s.picture_limit} pictures.</p>
+    <div class="notice">The picture allowance is fixed at 80 pictures per seller.</div>
     <form data-form="limit" style="margin-top:1rem">
-      <label>New picture limit<input name="limit" type="number" min="80" step="1" inputmode="numeric" value="${s.picture_limit}" required></label>
-      <div class="quick"><button type="button" class="chip" data-act="addlimit" data-v="20">+20</button><button type="button" class="chip" data-act="addlimit" data-v="50">+50</button><button type="button" class="chip" data-act="addlimit" data-v="100">+100</button></div>
-      <p class="hint">The minimum is 80. Pictures above 80 are paid for by the seller. Videos stay at a maximum of 10.</p>
+      <label>Picture limit<input name="limit" type="number" min="80" max="80" value="80" readonly required></label>
+      <p class="hint">The minimum is 80. Each seller can upload up to 80 pictures and 5 promotional videos.</p>
       <p class="formerr" id="limit-err" role="alert"></p>
       <button class="btn" type="submit">Save limit</button>
     </form></div></div>`;
+  }
+  if (sh.type === 'promo') {
+    const u = usage(), left = Math.max(0, Math.min(5, state.me.video_limit || 5) - u.video);
+    return `<div class="scrim" data-act="closeSheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="Add promotional video"><div class="sheet-head"><h2>Add promotional video</h2><button class="x" data-act="closeSheet" aria-label="Close">×</button></div>
+      <p class="muted">Share any short video that helps customers discover your business. No product name, price, category or picture is required.</p>
+      <p class="hint">${u.video} of 5 videos used. You can upload ${left} more. Maximum length: 60 seconds. Each video is compressed before upload.</p>
+      ${left ? `<form data-form="promo"><label>Choose a video<input type="file" data-promo-files accept="video/*"><span class="hint">Choose one video at a time. Maximum 1 minute.</span></label><div id="promo-filelist"></div><p class="formerr" id="promo-err" role="alert"></p><button class="btn" type="submit" id="promobtn">Upload video</button></form>` : '<p class="notice">You have reached your limit of 5 videos.</p>'}
+    </div></div>`;
   }
   if (sh.type === 'add' || sh.type === 'edit') {
     const edit = sh.type === 'edit', it = edit ? state.items.find((x) => x.id === sh.id) : null, p = state.me, u = usage();
@@ -563,8 +591,8 @@ function renderSheet() {
       <label>Category<select name="category" required>${opts}</select></label>
       <label>Cost price, optional (only you see this)<input name="cost" type="number" min="0" step="any" inputmode="decimal" value="${edit && state.costs[sh.id] != null ? esc(state.costs[sh.id]) : ''}" placeholder="What you paid for it"></label>
       <label>Note under the post<input name="note" maxlength="80" value="${esc(it ? it.note : '')}" placeholder="e.g. All colors available"></label>
-      ${edit ? '' : `<label>Pictures and videos<input type="file" data-files accept="image/*,video/*" multiple>
-        <span class="hint">Add a picture for each colour. You have ${p.picture_limit - u.image} pictures and ${p.video_limit - u.video} videos left. Videos can be up to 1 minute. Bigger videos are shrunk for you, so keep this page open while it works.</span></label>
+      ${edit ? '' : `<label>Product picture<input type="file" data-files accept="image/*">
+        <span class="hint">Choose one picture for this item. You have ${Math.max(0, 80 - u.image)} of 80 pictures remaining. Upload another item with its own picture when you are ready.</span></label>
       <div id="filelist"></div>`}
       <p class="formerr" id="sheet-err" role="alert"></p>
       <button class="btn" type="submit" id="postbtn">${edit ? 'Save changes' : 'Post item'}</button>
@@ -598,18 +626,21 @@ function itemCard(i, active) {
 
 function renderShop() {
   const p = state.me, eff = effStatus(p), active = eff === 'active', u = usage();
-  const pct = Math.min(100, Math.round(u.image / p.picture_limit * 100));
+  const pictureLimit = 80;
+  const pct = Math.min(100, Math.round(u.image / pictureLimit * 100));
   const link = shopLink();
   const hlGone = state.highlight && !state.items.some((x) => x.id === state.highlight);
   const share = active ? `<div class="share"><a class="btn wa sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Visit my shop on ShopLink: ' + link)}">Share on WhatsApp</a><button class="btn ghost sm" data-act="copy">Copy shop link</button></div>` : '';
   const notice = active ? '' : `<p class="notice">${esc(NOTES[eff] || '')}</p>`;
   return `<main class="wrap">${hlGone ? '<p class="notice" style="margin-top:1.2rem">That item is no longer in your shop. It may already have been sold.</p>' : ''}<section class="acct"><div class="acct-top"><div class="who2"><div class="avatar">${photoHtml(p, 'hero')}${logoHtml(p, 'badge')}</div><div><h2>${esc(p.shop_name)}</h2><p class="muted">${esc(p.shop_type)}</p></div></div>${pill(p)}</div>
     <p style="margin:.9rem 0 0;font-weight:600">${active ? 'Active until ' + fmtDate(p.expires_at) : 'Plan expires: ' + fmtDate(p.expires_at)}</p>
-    <div class="meter" role="progressbar" aria-valuenow="${u.image}" aria-valuemin="0" aria-valuemax="${p.picture_limit}"><div style="width:${pct}%"></div></div>
-    <p class="muted">${u.image} of ${p.picture_limit} pictures used, ${u.video} of ${p.video_limit} videos</p>
-    <p class="plan-note"><b>Pictures:</b> every plan includes 80 pictures. More can be added at an extra cost. <b>Videos:</b> up to 10, each up to 1 minute.${cfg.EXTRA_PICTURES_NOTE ? ' ' + esc(cfg.EXTRA_PICTURES_NOTE) : ''}</p>
-    <button class="btn ghost sm" data-act="askMore">Ask for more pictures</button>${share}</section>
+    <div class="meter" role="progressbar" aria-valuenow="${u.image}" aria-valuemin="0" aria-valuemax="80"><div style="width:${pct}%"></div></div>
+    <p class="muted">${u.image} of 80 pictures used, ${u.video} of 5 videos</p>
+    <p class="plan-note"><b>Pictures:</b> up to 80 pictures in total, uploaded one at a time. <b>Promotional videos:</b> up to 5 videos, each no longer than 1 minute. Videos do not need product details.</p>
+    ${share}</section>
     ${notice}
+    <section class="promo-manager"><div class="section-head"><div><h3>Promotional videos</h3><p class="muted">Short videos to attract customers to your shop.</p></div><button class="btn sm" data-act="openPromo" ${active && u.video < 5 ? '' : 'disabled'}>Add video</button></div>
+    <div class="promo-grid">${(state.promoVideos || []).map((v) => `<article class="promo-card"><video src="${esc(mediaUrl(v.path))}" controls playsinline preload="metadata"></video><button class="btn danger sm" data-act="delPromo" data-v="${v.id}">${state.pendingDel === 'promo-' + v.id ? 'Tap again to delete' : 'Delete video'}</button></article>`).join('') || '<p class="empty">You have not posted a promotional video yet.</p>'}</div></section>
     <button class="btn" data-act="openAdd" ${active ? '' : 'disabled'}>Add item</button>
     <div class="feed">${state.items.map((i) => itemCard(i, active)).join('') || '<p class="empty">You have no items yet. Tap Add item to post your first one.</p>'}</div></main>`;
 }
@@ -929,6 +960,11 @@ document.addEventListener('click', (e) => {
   else if (act === 'addlimit') { const inp = document.querySelector('[name=limit]'); if (inp) inp.value = (Number(inp.value) || 80) + Number(v); }
   else if (act === 'askMore') { state.tab = 'messages'; state.prefill = 'Hello, I would like to increase my picture limit. Please tell me the cost.'; render(); }
   else if (act === 'openAdd') { state.files = []; state.sheet = {type: 'add'}; render(); }
+  else if (act === 'openPromo') { state.files = []; state.sheet = {type: 'promo'}; render(); }
+  else if (act === 'delPromo') {
+    if (state.pendingDel !== 'promo-' + v) { state.pendingDel = 'promo-' + v; render(); setTimeout(() => { if (state.pendingDel === 'promo-' + v) { state.pendingDel = null; render(); } }, 3500); return; }
+    guard(async () => { const video = state.promoVideos.find((x) => x.id === v); if (!video) return; const {error} = await sb.from('seller_videos').delete().eq('id', v); if (error) throw new Error(error.message); await sb.storage.from('media').remove([video.path]); state.pendingDel = null; await loadSeller(); render(); toast('Video deleted.'); });
+  }
   else if (act === 'openEdit') { state.sheet = {type: 'edit', id: v}; render(); }
   else if (act === 'rmfile') { const x = state.files.splice(Number(v), 1)[0]; if (x) { x.cancelled = true; if (x.url) URL.revokeObjectURL(x.url); } drawFiles(); }
   else if (act === 'copy') {
@@ -993,6 +1029,7 @@ document.addEventListener('submit', (e) => {
     await loadMessages(); state.refocus = true; render();
   });
   else if (kind === 'add') postItem(form, f);
+  else if (kind === 'promo') postPromoVideo();
   else if (kind === 'edit') guard(async () => {
     const title = String(f.get('title')).trim(), price = String(f.get('price')).trim();
     const { error } = await sb.from('items').update({title, price: price === '' ? null : Number(price), category_id: f.get('category'), note: String(f.get('note')).trim() || null}).eq('id', state.sheet.id);
@@ -1148,13 +1185,13 @@ async function prepareVideo(entry) {
   const file = entry.file;
   const fail = (msg) => {
     const i = state.files.indexOf(entry); if (i >= 0) state.files.splice(i, 1);
-    drawFiles(); const err = $('sheet-err'); if (err) err.textContent = msg;
+    drawFiles(); const err = $(state.sheet && state.sheet.type === 'promo' ? 'promo-err' : 'sheet-err'); if (err) err.textContent = msg;
   };
   try {
     entry.status = 'Checking video...'; drawFiles();
     const info = await videoInfo(file);
     if (entry.cancelled) return;
-    if (!isFinite(info.duration) || info.duration > MAXSEC) return fail('"' + file.name + '" is longer than 1 minute. Please choose a shorter video.');
+    if (!isFinite(info.duration) || info.duration > MAXSEC) return fail('"' + file.name + '" is longer than 60 seconds. Please choose a shorter video.');
     if (file.size <= MAXVID && /^video\/(mp4|webm)/.test(file.type)) {
       entry.out = {blob: file, ext: file.type.indexOf('webm') >= 0 ? 'webm' : 'mp4', type: file.type.split(';')[0]};
       entry.status = ''; drawFiles(); return;
@@ -1175,31 +1212,37 @@ function closeSheet() {
 }
 
 function drawFiles() {
-  const box = $('filelist'); if (!box) return;
+  const promo = state.sheet && state.sheet.type === 'promo';
+  const box = $(promo ? 'promo-filelist' : 'filelist'); if (!box) return;
   box.innerHTML = state.files.map((x, i) => `<div class="fitem">${x.kind === 'image' ? `<img src="${x.url}" alt="">` : '<span class="vtile">Video</span>'}<span class="fname">${esc(x.file.name)}${x.status ? `<br><small>${esc(x.status)}</small>` : ''}</span><button type="button" class="x" data-act="rmfile" data-v="${i}" aria-label="Remove">×</button></div>`).join('');
 }
 
-function addFiles(list) {
+function addFiles(list, promoMode) {
   const p = state.me, u = usage(), msgs = [];
-  let imgs = state.files.filter((x) => x.kind === 'image').length, vids = state.files.length - imgs;
+  let imgs = state.files.filter((x) => x.kind === 'image').length, vids = state.files.filter((x) => x.kind === 'video').length;
   list.forEach((file) => {
     const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : null;
-    if (!kind) { msgs.push(file.name + ' is not a picture or video.'); return; }
-    if (kind === 'video' && file.size > MAXRAW) { msgs.push(file.name + ' is too big. Choose a video under 1 minute.'); return; }
-    if (kind === 'image' && u.image + imgs >= p.picture_limit) { msgs.push('You have reached your picture limit. Tap Messages to ask the admin for more.'); return; }
-    if (kind === 'video' && u.video + vids >= p.video_limit) { msgs.push('You have reached your video limit.'); return; }
+    if (promoMode && kind !== 'video') { msgs.push(file.name + ' is not a video.'); return; }
+    if (!promoMode && kind !== 'image') { msgs.push('Product posts accept one picture only. Use Add video for promotional videos.'); return; }
+    if (!kind) { msgs.push(file.name + ' is not a supported media file.'); return; }
+    if (kind === 'video' && file.size > MAXRAW) { msgs.push(file.name + ' is too large to process. Choose a shorter or smaller video.'); return; }
+    if (kind === 'image' && u.image + imgs >= 80) { msgs.push('You have reached the maximum of 80 pictures for your shop.'); return; }
+    if (kind === 'video' && u.video + vids >= 5) { msgs.push('You have reached your limit of 5 videos.'); return; }
+    if (promoMode && state.files.length >= 1) { msgs.push('Upload one video at a time.'); return; }
+    if (!promoMode && state.files.length >= 1) { msgs.push('Upload one product picture at a time.'); return; }
     const entry = {file, kind, url: kind === 'image' ? URL.createObjectURL(file) : null};
     state.files.push(entry);
     if (kind === 'video') videoQueue = videoQueue.then(() => prepareVideo(entry));
     if (kind === 'image') imgs++; else vids++;
   });
   drawFiles();
-  const err = $('sheet-err'); if (err) err.textContent = msgs.join(' ');
+  const err = $(promoMode ? 'promo-err' : 'sheet-err'); if (err) err.textContent = msgs.join(' ');
 }
 
 document.addEventListener('change', (e) => {
   const t = e.target;
-  if (t.hasAttribute && t.hasAttribute('data-files')) { const list = Array.from(t.files); t.value = ''; addFiles(list); }
+  if (t.hasAttribute && t.hasAttribute('data-files')) { const list = Array.from(t.files); t.value = ''; addFiles(list, false); }
+  else if (t.hasAttribute && t.hasAttribute('data-promo-files')) { const list = Array.from(t.files); t.value = ''; addFiles(list, true); }
   else if (t.id === 'pf-country') {
     const c = SL.byName(t.value);
     $('pf-dial').textContent = '+' + (c ? c.dial : '');
@@ -1219,7 +1262,7 @@ async function postItem(form, f) {
   const err = $('sheet-err'), btn = $('postbtn');
   const title = String(f.get('title')).trim(), price = String(f.get('price')).trim();
   if (!title) { err.textContent = 'Enter the item name.'; return; }
-  if (!state.files.some((x) => x.kind === 'image')) { err.textContent = 'Add at least one picture.'; return; }
+  if (state.files.length !== 1 || state.files[0].kind !== 'image') { err.textContent = 'Choose one product picture.'; return; }
   if (state.files.some((x) => x.kind === 'video' && !x.out)) { err.textContent = 'Please wait. A video is still being prepared.'; return; }
   const files = state.files.slice(), me = state.me;
   btn.disabled = true; err.textContent = '';
@@ -1247,6 +1290,29 @@ async function postItem(form, f) {
     if (item) await sb.from('items').delete().eq('id', item.id);
     err.textContent = error.message || 'Could not post the item. Try again.';
     btn.disabled = false; btn.textContent = 'Post item';
+  }
+}
+
+async function postPromoVideo() {
+  const err = $('promo-err'), btn = $('promobtn'), me = state.me;
+  const entry = state.files[0];
+  if (!entry || entry.kind !== 'video') { if (err) err.textContent = 'Choose a video first.'; return; }
+  if (!entry.out) { if (err) err.textContent = 'Please wait while the video is being checked and prepared.'; return; }
+  if (usage().video >= 5) { err.textContent = 'You have reached your limit of 5 videos.'; return; }
+  btn.disabled = true; err.textContent = '';
+  let path = null;
+  try {
+    const ext = entry.out.ext || 'mp4';
+    path = me.id + '/videos/' + Date.now() + '.' + ext;
+    const up = await sb.storage.from('media').upload(path, entry.out.blob, {contentType: entry.out.type, upsert:false});
+    if (up.error) throw new Error(up.error.message);
+    const ins = await sb.from('seller_videos').insert({seller_id:me.id, path});
+    if (ins.error) { await sb.storage.from('media').remove([path]); path = null; throw new Error(ins.error.message); }
+    await loadSeller(); closeSheet(); toast('Promotional video uploaded.');
+  } catch (error) {
+    if (path) await sb.storage.from('media').remove([path]);
+    err.textContent = error.message || 'Could not upload the video. Please try again.';
+    btn.disabled = false;
   }
 }
 
@@ -1385,6 +1451,16 @@ setInterval(async () => {
     $('app').innerHTML = `<main class="wrap"><p class="err">${esc(err.message || err)}</p><button class="btn" onclick="location.reload()">Try again</button></main>`;
   }
 })();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch((error) => {
+      console.warn('ShopLink offline support could not be registered:', error);
+    });
+  });
+}
 </script>
 </body>
 </html>

@@ -151,6 +151,7 @@ img.photo{object-position:center 25%}
 .brand{font-size:1.1rem}
 .toprow{padding-bottom:0;padding-top:.9rem}
 .toprow .backbtn{font-size:1rem;min-height:2.9rem;padding:.5rem 1.2rem}
+.promo-public{margin:.8rem 0 1rem}.promo-public h3{font-size:1rem;margin:0 0 .45rem}.promo-public-row{display:flex;gap:.7rem;overflow-x:auto;padding:.15rem 0 .5rem}.promo-public-card{flex:0 0 min(72vw,300px);max-width:300px}.promo-public-card video{display:block;width:100%;max-height:280px;object-fit:contain;background:#111;border-radius:.8rem}
 </style>
 </head>
 <body>
@@ -232,7 +233,7 @@ function visitorId() {
 function logEvent(kind, sellerId, itemId) {
   try { sb.rpc('log_event', {p_seller: sellerId, p_item: itemId || null, p_kind: kind, p_visitor: visitorId()}).then(() => {}, () => {}); } catch (e) { /* counting must never break the page */ }
 }
-const state = {shops:[], cats:[], items:[], cat:'all', sheet:null, q:'', qRaw:'', highlight:new URLSearchParams(location.search).get('item'), meId:null, scrolled:false};
+const state = {shops:[], cats:[], items:[], promoVideos:[], cat:'all', sheet:null, q:'', qRaw:'', highlight:new URLSearchParams(location.search).get('item'), meId:null, scrolled:false};
 
 async function ok(promise) {
   const { data, error } = await promise;
@@ -313,11 +314,13 @@ function card(i, s) {
 function render() {
   const byShop = {};
   state.items.forEach((i) => { (byShop[i.seller_id] || (byShop[i.seller_id] = [])).push(i); });
+  const videosByShop = {};
+  state.promoVideos.forEach((v) => { (videosByShop[v.seller_id] || (videosByShop[v.seller_id] = [])).push(v); });
   let shops = state.shops.slice();
   if (only) shops = shops.filter((s) => s.shop_slug === only);
 
   // newest activity first
-  const newest = (s) => (byShop[s.id] && byShop[s.id][0]) ? byShop[s.id][0].created_at : '';
+  const newest = (s) => (byShop[s.id] && byShop[s.id][0]) ? byShop[s.id][0].created_at : ((videosByShop[s.id] && videosByShop[s.id][0]) ? videosByShop[s.id][0].created_at : '');
   shops.sort((a, b) => newest(a) < newest(b) ? 1 : -1);
 
   const chips = [['all', 'All']].concat(state.cats.map((c) => [c.id, c.name])).map(([id, name]) =>
@@ -332,9 +335,11 @@ function render() {
   }
   const rows = shops.map((s) => {
     const list = (byShop[s.id] || []).filter((i) => (state.cat === 'all' || i.category_id === state.cat) && (only || itemMatches(i, s, state.q)));
-    if (!list.length && !only) return '';
+    const promo = videosByShop[s.id] || [];
+    if (!list.length && !promo.length && !only) return '';
     return `<section class="shop"><div class="shop-head"><div class="who"><button class="avatar" data-act="info" data-v="${s.id}" aria-label="See who runs ${esc(s.shop_name)}">${photoHtml(s, 'hero')}${logoHtml(s, 'badge')}</button><div><h2>${esc(s.shop_name)}</h2><p class="muted">${esc(s.shop_type)}, ${list.length} item${list.length === 1 ? '' : 's'}</p>${s.location ? `<p class="muted">📍 ${esc(s.location)}</p>` : ''}<span class="owner">${esc(s.owner_name)}</span></div></div>
       <div class="hbtns"><button class="pillbtn" data-act="info" data-v="${s.id}" aria-label="Shop info for ${esc(s.shop_name)}">Info</button><a class="pillbtn wa" data-enq="" data-shop="${s.id}" target="_blank" rel="noopener" href="https://wa.me/${waNumber(s.whatsapp, s.country)}" aria-label="Chat with ${esc(s.shop_name)} on WhatsApp">Chat</a></div></div>
+      ${promo.length ? `<div class="promo-public"><h3>From this seller</h3><div class="promo-public-row">${promo.map((v) => `<div class="promo-public-card"><video src="${esc(mediaUrl(v.path))}" controls playsinline preload="metadata"></video></div>`).join('')}</div></div>` : ''}
       ${list.length ? `<div class="row-tools" aria-label="Scroll products"><button class="scroll-btn" type="button" data-act="scroll-row" data-dir="-1" aria-label="Scroll products left">‹</button><button class="scroll-btn" type="button" data-act="scroll-row" data-dir="1" aria-label="Scroll products right">›</button></div><div class="row">${list.map((i) => card(i, s)).join('')}</div>` : '<p class="muted">No items in this category yet.</p>'}</section>`;
   }).join('');
 
@@ -448,12 +453,13 @@ if (only) $('searchbox').hidden = true;
 
 (async function boot() {
   try {
-    const [shops, cats, items] = await Promise.all([
+    const [shops, cats, items, promoVideos] = await Promise.all([
       ok(sb.from('shops').select('*')),
       ok(sb.from('categories').select('*').order('sort')),
-      ok(sb.from('items').select('id,seller_id,title,price,note,status,category_id,created_at,item_media(id,kind,path,created_at)').order('created_at', {ascending: false}))
+      ok(sb.from('items').select('id,seller_id,title,price,note,status,category_id,created_at,item_media(id,kind,path,created_at)').order('created_at', {ascending: false})),
+      ok(sb.from('seller_videos').select('id,seller_id,path,created_at').order('created_at', {ascending: false}))
     ]);
-    state.shops = shops; state.cats = cats; state.items = items;
+    state.shops = shops; state.cats = cats; state.items = items; state.promoVideos = promoVideos;
     if (only) { const sh = shops.find((x) => x.shop_slug === only); if (sh) logEvent('shop_visit', sh.id, null); }
     try { const { data: { session } } = await sb.auth.getSession(); state.meId = session ? session.user.id : null; } catch (e) { /* not signed in */ }
     render();
