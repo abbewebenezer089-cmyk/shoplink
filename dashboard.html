@@ -419,7 +419,7 @@ async function loadAdmin() {
 async function loadSeller() {
   const [cats, items, sales, expenses, costs, events, promoVideos] = await Promise.all([
     ok(sb.from('categories').select('*').order('sort')),
-    ok(sb.from('items').select('id,product_code,title,price,note,status,category_id,created_at,item_media(id,kind,path,created_at)').eq('seller_id', state.me.id).order('created_at', {ascending: false})),
+    ok(sb.from('items').select('id,title,price,note,status,category_id,created_at,item_media(id,kind,path,created_at)').eq('seller_id', state.me.id).order('created_at', {ascending: false})),
     soft(sb.from('sales').select('*').eq('seller_id', state.me.id).order('sold_at', {ascending: false})),
     soft(sb.from('expenses').select('*').eq('seller_id', state.me.id).order('spent_at', {ascending: false})),
     soft(sb.from('item_costs').select('item_id,cost_price').eq('seller_id', state.me.id)),
@@ -579,7 +579,7 @@ function renderSheet() {
   if (sh.type === 'sell') {
     const it = state.items.find((x) => x.id === sh.id), cost = state.costs[sh.id];
     return `<div class="scrim" data-act="closeSheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="Item sold"><div class="sheet-head"><h2>Item sold</h2><button class="x" data-act="closeSheet" aria-label="Close">×</button></div>
-    <p><b>${esc(it.title)}</b></p><p class="hint">Product ID: ${esc(it.product_code || 'Not assigned yet')}</p>
+    <p><b>${esc(it.title)}</b></p>
     <form data-form="sell" style="margin-top:.8rem">
       <label>Amount received (${esc(curOf(state.me))})<input name="amount" type="number" min="0" step="any" inputmode="decimal" required value="${it.price != null ? esc(it.price) : ''}"></label>
       <label>Cost price, optional (only you see this)<input name="cost" type="number" min="0" step="any" inputmode="decimal" value="${cost != null ? esc(cost) : ''}" placeholder="What you paid for it"></label>
@@ -693,6 +693,10 @@ const NOTES = {
   suspended: 'Your account is suspended. Please contact the admin in Messages.'
 };
 
+function productCode(id) {
+  return id ? 'SL-PRD-' + String(id).toUpperCase() : 'Not linked';
+}
+
 function itemCard(i, active) {
   const media = sortMedia(i), sold = i.status === 'sold';
   const cat = state.categories.find((c) => c.id === i.category_id);
@@ -700,7 +704,7 @@ function itemCard(i, active) {
     ? `<video src="${esc(mediaUrl(m.path))}" controls playsinline preload="metadata"></video>`
     : `<img src="${esc(mediaUrl(m.path))}" alt="" loading="lazy">`}<span class="count">${k + 1} of ${media.length}</span></div>`).join('');
   return `<article class="card v${state.highlight === i.id ? ' hl' : ''}" id="item-${i.id}"><div class="tile-wrap"><div class="pics">${pics}</div>${sold ? '<span class="stamp">Sold</span>' : ''}</div>
-    <div class="body">${state.highlight === i.id ? '<span class="hl-badge">A customer asked about this item</span>' : ''}<h3>${esc(i.title)}</h3><p class="muted">${esc(cat ? cat.name : '')}</p><p class="hint">Product ID: <b>${esc(i.product_code || 'Available after database update')}</b></p>
+    <div class="body">${state.highlight === i.id ? '<span class="hl-badge">A customer asked about this item</span>' : ''}<h3>${esc(i.title)}</h3><p class="muted">${esc(cat ? cat.name : '')}</p><p class="hint">Product ID: ${esc(productCode(i.id))}</p>
     ${i.price != null ? `<p class="price">${esc(money(i.price, curOf(state.me)))}</p>` : ''}${i.note ? `<span class="note">${esc(i.note)}</span>` : ''}
     <div class="actions">
       <button class="btn sm" data-act="sellSheet" data-v="${i.id}">Sold</button>
@@ -881,20 +885,24 @@ function renderReport() {
     const isBest = bestMonthIndex(months) === i && m.revenue > 0;
     return `<div class="month-row${isBest ? ' is-best' : ''}"><span class="month-name">${MONTHS[i]}</span><div class="month-track" role="img" aria-label="${MONTHS[i]} sales are ${pct}% of the highest month"><i class="month-fill ${level}" style="width:${pct}%"></i></div><b class="month-sales">${esc(cash(m.revenue))}</b></div>`;
   }).join('');
-  const byItem = {};
+  // Group by the immutable product ID, never by the displayed product name.
+  // Legacy/manual sales without an ID stay separate instead of being merged by name.
+  const byItem = new Map();
   r.sales.forEach((s) => {
-    const fallbackName = String(s.item_title || 'Unnamed item').trim().toLocaleLowerCase();
-    const key = s.product_id ? 'product:' + s.product_id : 'name:' + fallbackName;
-    const e = byItem[key] || (byItem[key] = {title: s.item_title || 'Unnamed item', productCode: s.product_code || '', revenue: 0, count: 0, quantity: 0});
-    e.revenue += Number(s.amount) || 0; e.count++; e.quantity += Number(s.quantity) || 1;
+    const key = s.item_id ? 'product:' + s.item_id : 'unlinked-sale:' + s.id;
+    const e = byItem.get(key) || {title: s.item_title || 'Unnamed item', code: s.item_code_snapshot || productCode(s.item_id), revenue: 0, count: 0, quantity: 0};
+    e.revenue += Number(s.amount) || 0;
+    e.count++;
+    e.quantity += Number(s.quantity) || 1;
+    byItem.set(key, e);
   });
-  const revenueItems = Object.values(byItem).sort((a, b) => a.title.localeCompare(b.title));
-  const revenueTable = revenueItems.length ? `<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Product ID</th><th>Item name</th><th class="num">Sales entries</th><th class="num">Total revenue</th></tr></thead><tbody>${revenueItems.map(i => `<tr><td>${esc(i.productCode || '—')}</td><td>${esc(i.title)}</td><td class="num">${i.count}</td><td class="num">${esc(cash(i.revenue))}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="3">Total revenue</td><td class="num">${esc(cash(r.revenue))}</td></tr></tfoot></table></div>` : '<p class="report-empty">No revenue recorded for this year.</p>';
-  const top = Object.values(byItem).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+  const itemBreakdown = [...byItem.values()].sort((a, b) => b.revenue - a.revenue);
+  const top = itemBreakdown.slice(0, 5);
   // Full transaction lists: do not limit these to the top five items.
   const salesDetails = [...r.sales].sort((a, b) => new Date(b.sold_at) - new Date(a.sold_at));
   const expenseDetails = [...r.exp].sort((a, b) => expenseDate(b) - expenseDate(a));
-  const salesTable = salesDetails.length ? `<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Date</th><th>Product ID</th><th>Item sold</th><th class="num">Sales</th><th class="num">Cost of sales</th><th class="num">Profit</th></tr></thead><tbody>${salesDetails.map(s => { const amount = Number(s.amount) || 0; const cost = s.cost == null ? null : Number(s.cost) || 0; return `<tr><td>${esc(fmtDate(new Date(s.sold_at)))}</td><td>${esc(s.product_code || '—')}</td><td>${esc(s.item_title || 'Unnamed item')}</td><td class="num">${esc(cash(amount))}</td><td class="num">${cost == null ? '—' : esc(cash(cost))}</td><td class="num">${cost == null ? '—' : esc(cash(amount - cost))}</td></tr>`; }).join('')}</tbody><tfoot><tr><td colspan="3">Total</td><td class="num">${esc(cash(r.revenue))}</td><td class="num">${esc(cash(r.cogs))}</td><td class="num">${esc(cash(r.gross))}</td></tr></tfoot></table></div>` : '<p class="report-empty">No sales recorded for this year.</p>' ;
+  const salesTable = salesDetails.length ? `<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Date</th><th>Item sold</th><th>Product ID</th><th class="num">Sales</th><th class="num">Cost of sales</th><th class="num">Profit</th></tr></thead><tbody>${salesDetails.map(s => { const amount = Number(s.amount) || 0; const cost = s.cost == null ? null : Number(s.cost) || 0; return `<tr><td>${esc(fmtDate(new Date(s.sold_at)))}</td><td>${esc(s.item_title || 'Unnamed item')}</td><td>${esc(s.item_code_snapshot || productCode(s.item_id))}</td><td class="num">${esc(cash(amount))}</td><td class="num">${cost == null ? '—' : esc(cash(cost))}</td><td class="num">${cost == null ? '—' : esc(cash(amount - cost))}</td></tr>`; }).join('')}</tbody><tfoot><tr><td colspan="3">Total</td><td class="num">${esc(cash(r.revenue))}</td><td class="num">${esc(cash(r.cogs))}</td><td class="num">${esc(cash(r.gross))}</td></tr></tfoot></table></div>` : '<p class="report-empty">No sales recorded for this year.</p>' ;
+  const itemRevenueRows = itemBreakdown.length ? itemBreakdown.map(t => line(esc(t.title) + ` <small class="muted">(${esc(t.code)}) · ${t.count} sale${t.count === 1 ? '' : 's'}</small>`, esc(cash(t.revenue)))).join('') : '<p class="muted">No sales recorded for this year yet.</p>';
   const expensesTable = expenseDetails.length ? `<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Date</th><th>Expense category</th><th>Description</th><th class="num">Amount</th></tr></thead><tbody>${expenseDetails.map(e => `<tr><td>${esc(fmtDate(expenseDate(e)))}</td><td>${esc(EXP_LABEL[e.kind] || e.kind || 'Other')}</td><td>${esc(e.description || '—')}</td><td class="num">${esc(cash(e.amount))}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="3">Total expenses</td><td class="num">${esc(cash(r.spent))}</td></tr></tfoot></table></div>` : '<p class="report-empty">No expenses recorded for this year.</p>' ;
   const byKind = {};
   r.exp.forEach((e) => { byKind[e.kind] = (byKind[e.kind] || 0) + (Number(e.amount) || 0); });
@@ -912,8 +920,7 @@ function renderReport() {
     ${line('Sales (revenue)', esc(cash(r.revenue)))}${line('Cost of goods sold', esc(cash(r.cogs)))}${line('Gross profit', esc(cash(r.gross)))}${line('Expenses', esc(cash(r.spent)))}${line('<b>Net profit</b>', '<b>' + esc(cash(r.net)) + '</b>')}
     ${line('Number of sales', r.count)}${line('People who visited your shop', rc.visitors)}${line('Enquiries on WhatsApp', rc.enquiries)}${rc.enquiries ? line('Sales for every 100 enquiries', Math.round(r.count / rc.enquiries * 100)) : ''}${line('Profit margin', margin.toFixed(1) + '%')}${line('Advertising spend', esc(cash(ads)) + (r.revenue ? ' (' + adShare.toFixed(1) + '% of sales)' : ''))}${best >= 0 ? `<div class="best-month-card"><div><span>BEST PERFORMING MONTH · SALES</span><b>${MONTHS[best]}</b></div><b>${esc(cash(months[best].revenue))}</b></div>` : ''}
     <h3 class="sec3">Monthly sales performance</h3><p class="hint">Bars compare each month’s sales revenue. The longest bar represents the highest sales.</p>${monthRows}
-    <h3 class="sec3">Revenue by product</h3><p class="hint">Each product is listed separately. Repeated sales are combined only when they share the same Product ID.</p>${revenueTable}
-    <h3 class="sec3">Best-selling items</h3>${top.map((t) => line(esc(t.title) + ' (' + t.count + ')', esc(cash(t.revenue)))).join('') || '<p class="muted">No sales this year yet.</p>'}
+    <h3 class="sec3">Revenue by product</h3><p class="hint">Each product is identified by its unique Product ID. Different products remain separate even if they have the same name. Older sales without a linked Product ID are kept separate.</p>${itemRevenueRows}
     <h3 class="sec3">All sales recorded (${salesDetails.length})</h3><p class="hint">Every sale for the selected year, showing the item, amount received, cost of sales and profit.</p>${salesTable}
     <h3 class="sec3">Where the money went</h3>${kinds.map((k) => line(esc(EXP_LABEL[k] || k), esc(cash(byKind[k])))).join('') || '<p class="muted">No expenses this year yet.</p>'}
     <h3 class="sec3">All expenses recorded (${expenseDetails.length})</h3><p class="hint">Every expense for the selected year, showing its date, category, description and amount.</p>${expensesTable}
@@ -953,13 +960,6 @@ function exportReport(kind) {
       expenseTotals[label] = (expenseTotals[label] || 0) + (Number(expense.amount) || 0);
     });
     const expenseLines = Object.keys(expenseTotals).sort().map((label) => [label, expenseTotals[label]]);
-    const revenueByProduct = {};
-    r.sales.forEach((sale) => {
-      const key = sale.product_id ? 'product:' + sale.product_id : 'name:' + String(sale.item_title || 'Unnamed item').trim().toLocaleLowerCase();
-      if (!revenueByProduct[key]) revenueByProduct[key] = {code: sale.product_code || '', title: sale.item_title || 'Unnamed item', amount: 0, entries: 0};
-      revenueByProduct[key].amount += Number(sale.amount) || 0; revenueByProduct[key].entries++;
-    });
-    const revenueLines = Object.values(revenueByProduct).sort((a,b) => a.title.localeCompare(b.title)).map((item) => [item.code, item.title, item.entries, item.amount]);
     const rows = [
       [state.me.shop_name || 'ShopLink'],
       ['STATEMENT OF PROFIT OR LOSS'],
@@ -967,9 +967,9 @@ function exportReport(kind) {
       [],
       ['Particulars', 'Amount (GHC)'],
       ['REVENUE', ''],
-      ['Product ID', 'Item name', 'Sales entries', 'Revenue'],
-      ...revenueLines,
-      ['Total sales revenue', r.revenue],
+      ['Sales revenue', r.revenue],
+      ['REVENUE BY PRODUCT', ''],
+      ...[...new Map(r.sales.map(s => [s.item_id ? 'product:' + s.item_id : 'unlinked-sale:' + s.id, {title: s.item_title || 'Unnamed item', code: s.item_code_snapshot || productCode(s.item_id), amount: 0}])).entries()].map(([key, item]) => { item.amount = r.sales.filter(s => (s.item_id ? 'product:' + s.item_id : 'unlinked-sale:' + s.id) === key).reduce((n, s) => n + (Number(s.amount) || 0), 0); return [item.title + ' (' + item.code + ')', item.amount]; }),
       [],
       ['COST OF SALES', ''],
       ['Cost of goods sold', r.cogs],
@@ -989,8 +989,8 @@ function exportReport(kind) {
     MONTHS.forEach((month, i) => { const m = calc((d) => d.getFullYear() === y && d.getMonth() === i); rows.push([month + ' ' + y, m.revenue, m.cogs, m.gross, m.spent, m.net, m.count]); });
     downloadCsv(base + 'Monthly-Summary.csv', rows);
   } else if (kind === 'sales') {
-    const rows = [['Date', 'Product ID', 'Product UUID', 'Item sold', 'Sales amount', 'Cost of goods sold', 'Profit']];
-    r.sales.forEach((sale) => rows.push([new Date(sale.sold_at).toLocaleDateString(), sale.product_code || '', sale.product_id || '', sale.item_title, Number(sale.amount) || 0, Number(sale.cost) || 0, (Number(sale.amount) || 0) - (Number(sale.cost) || 0)]));
+    const rows = [['Date', 'Item sold', 'Product ID', 'Sales amount', 'Cost of goods sold', 'Profit']];
+    r.sales.forEach((sale) => rows.push([new Date(sale.sold_at).toLocaleDateString(), sale.item_title, sale.item_code_snapshot || productCode(sale.item_id), Number(sale.amount) || 0, Number(sale.cost) || 0, (Number(sale.amount) || 0) - (Number(sale.cost) || 0)]));
     downloadCsv(base + 'Sales-Details.csv', rows);
   } else if (kind === 'expenses') {
     const rows = [['Date', 'Category', 'Description', 'Amount']];
