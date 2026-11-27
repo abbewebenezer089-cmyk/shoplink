@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShopLink | Discover products and shops</title>
+<meta name="description" content="Discover products from different sellers and shops on ShopLink.">
+<meta name="theme-color" content="#1E2347">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Hanken+Grotesk:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1E2347;--soft:#596080;--paper:#F6F7FB;--card:#fff;--gold:#F5B82E;--green:#159653;--line:#E0E3EE;--display:"Bricolage Grotesque",sans-serif;--body:"Hanken Grotesk",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 var(--body)}a{color:inherit;text-decoration:none}button,input{font:inherit}.wrap{width:min(100% - 32px,1180px);margin:auto}
+header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line)}.head{height:68px;display:flex;align-items:center;gap:12px}.head img{width:38px;height:38px}.brand{font:800 25px var(--display)}.sell{margin-left:auto;border:2px solid var(--ink);border-radius:24px;padding:8px 16px;font-weight:800}
+nav{background:#fff;border-bottom:1px solid var(--line)}.nav{display:flex;gap:8px;overflow:auto;padding:9px 0}.nav a{white-space:nowrap;padding:9px 15px;border-radius:22px;font-weight:700;color:var(--soft)}.nav a.active,.nav a:hover{background:var(--ink);color:#fff}
+.hero{margin:22px auto 20px;background:linear-gradient(115deg,#1E2347,#343D72);color:#fff;border-radius:20px;padding:clamp(24px,5vw,52px);display:flex;justify-content:space-between;gap:20px;align-items:center}.hero h1{font:800 clamp(30px,5vw,52px)/1.03 var(--display);max-width:650px;margin:0 0 12px}.hero p{color:#e4e7f5;max-width:620px;margin:0}.hero .cta{display:inline-block;margin-top:18px;background:var(--gold);color:var(--ink);padding:11px 18px;border-radius:10px;font-weight:800}
+.search{display:flex;gap:10px;margin:18px 0}.search input{width:100%;border:1px solid var(--line);border-radius:12px;padding:13px 16px;background:#fff;outline-color:var(--gold)}
+.section-head{display:flex;justify-content:space-between;align-items:end;gap:12px;margin:26px 0 13px}.section-head h2{font:800 25px var(--display);margin:0}.muted{color:var(--soft);margin:3px 0 0;font-size:14px}
+.chips{display:flex;gap:8px;overflow:auto;padding:2px 0 10px}.chip{border:1px solid var(--line);background:#fff;border-radius:22px;padding:8px 15px;white-space:nowrap;font-weight:700;cursor:pointer}.chip.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.product{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0;cursor:pointer;transition:transform .15s}.product:hover{transform:translateY(-2px)}.picture{aspect-ratio:1/1;background:#eceef5;position:relative}.picture img{width:100%;height:100%;object-fit:cover;display:block}.picture .placeholder{height:100%;display:grid;place-items:center;color:#9298b0;font-size:40px}.product-body{padding:11px}.product h3{font-size:15px;line-height:1.3;margin:0 0 6px}.price{font-weight:800;font-size:17px;margin:0}.seller{display:flex;align-items:center;gap:6px;color:var(--soft);font-size:12px;margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.seller img,.seller .initial{width:22px;height:22px;border-radius:50%;object-fit:cover;background:#e9eaf2;display:grid;place-items:center;font-weight:800;flex:none}.order{display:block;background:var(--green);color:white;text-align:center;border-radius:8px;padding:8px;margin-top:10px;font-weight:800;font-size:13px}
+.shop-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.shop-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px;display:flex;gap:12px;align-items:center}.shop-logo{width:54px;height:54px;border-radius:12px;background:var(--ink);color:white;display:grid;place-items:center;font:800 22px var(--display);overflow:hidden;flex:none}.shop-logo img{width:100%;height:100%;object-fit:cover}.shop-card h3{font:800 16px var(--display);margin:0}.visit{display:inline-block;margin-top:6px;color:#147b49;font-weight:800;font-size:13px}
+.info-box{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;margin:20px 0}.empty{padding:35px;text-align:center;color:var(--soft);background:#fff;border-radius:14px}.loading{padding:40px;text-align:center;color:var(--soft)}
+footer{margin-top:45px;background:#fff;border-top:1px solid var(--line);padding:25px 0;text-align:center;color:var(--soft);font-size:14px}
+@media(min-width:650px){.grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.shop-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.product-body{padding:14px}.product h3{font-size:17px}}
+@media(min-width:950px){.grid{grid-template-columns:repeat(5,minmax(0,1fr))}.shop-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:480px){.hero{display:block}.hero .cta{width:100%;text-align:center}.sell{font-size:13px;padding:7px 11px}.section-head h2{font-size:22px}}
+</style>
+</head>
+<body>
+<header><div class="wrap head"><img src="logo.svg" alt="ShopLink"><a class="brand" href="marketplace.html">ShopLink</a><a class="sell" href="index.html">Start selling</a></div></header>
+<nav><div class="wrap nav">
+<a href="#home" data-page="home" class="active">Home</a><a href="#deals" data-page="deals">Top Deals</a><a href="#categories" data-page="categories">Categories</a><a href="#shops" data-page="shops">Shops</a><a href="#about" data-page="about">About</a>
+</div></nav>
+<main class="wrap">
+<section id="hero" class="hero"><div><h1>Discover products from shops across ShopLink.</h1><p>Explore products from different sellers in one place. Find what you need and contact the seller directly on WhatsApp.</p><a class="cta" href="#products">Explore products</a></div></section>
+<div class="search"><input id="search" type="search" placeholder="Search products, shops or categories..." aria-label="Search products, shops or categories"></div>
+<div id="content"><div class="loading">Loading ShopLink marketplace...</div></div>
+</main>
+<footer><div class="wrap"><b>ShopLink</b><p>Connecting sellers and buyers worldwide.</p><a href="index.html">Are you a seller? Create your shop.</a></div></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script>
+<script>
+const cfg=window.SHOPLINK_CONFIG||{}, sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);
+const $=id=>document.getElementById(id), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=(v,s)=>v==null?'':((s.currency||cfg.CURRENCY||'')+' '+Number(v).toLocaleString('en-US'));
+const media=p=>sb.storage.from('media').getPublicUrl(p).data.publicUrl;
+const initial=s=>(String(s||'?').trim()[0]||'?').toUpperCase();
+let shops=[],cats=[],items=[],page='home',category='all',query='';
+const pageFromHash=()=>{let p=location.hash.replace('#','');return ['home','deals','categories','shops','about'].includes(p)?p:'home'};
+function shopFor(id){return shops.find(s=>s.id===id)}
+function shopLink(s){return 'shops.html?shop='+encodeURIComponent(s.shop_slug)}
+function whatsapp(s,i){let n=String(s.whatsapp||'').replace(/\D/g,'');if(!s.country&&n.startsWith('0'))n=(cfg.COUNTRY_CODE||'233')+n.slice(1);let msg=`Hi, I am interested in ${i.title} (${money(i.price,s)}) from ${s.shop_name} on ShopLink.`;return 'https://wa.me/'+n+'?text='+encodeURIComponent(msg)}
+function productCard(i){const s=shopFor(i.seller_id);if(!s)return '';const m=(i.item_media||[]).find(x=>x.kind==='image')||(i.item_media||[])[0];return `<article class="product" onclick="location.href='${shopLink(s)}&item=${encodeURIComponent(i.id)}'"><div class="picture">${m?`<img src="${esc(media(m.path))}" alt="${esc(i.title)}" loading="lazy">`:`<div class="placeholder">▧</div>`}</div><div class="product-body"><h3>${esc(i.title)}</h3><p class="price">${esc(money(i.price,s))}</p><div class="seller">${s.logo_path?`<img src="${esc(media(s.logo_path))}" alt="">`:`<span class="initial">${esc(initial(s.shop_name))}</span>`}<span>${esc(s.shop_name)}</span></div>${i.status==='sold'?'<span class="order" style="background:#85899d">Sold out</span>':`<a class="order" href="${esc(whatsapp(s,i))}" onclick="event.stopPropagation()" target="_blank" rel="noopener">Order on WhatsApp</a>`}</div></article>`}
+function shopCard(s){let count=items.filter(i=>i.seller_id===s.id&&i.status!=='deleted').length;return `<article class="shop-card"><div class="shop-logo">${s.logo_path?`<img src="${esc(media(s.logo_path))}" alt="">`:esc(initial(s.shop_name))}</div><div style="min-width:0"><h3>${esc(s.shop_name)}</h3><p class="muted">${esc(s.shop_type||'Shop')} · ${count} products</p><p class="muted">${esc(s.location||'Location not provided')}</p><a class="visit" href="${shopLink(s)}">Visit shop →</a></div></article>`}
+function section(title,sub,html){return `<div class="section-head"><div><h2>${title}</h2><p class="muted">${sub}</p></div></div>${html}`}
+function render(){
+ page=pageFromHash();document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('active',a.dataset.page===page));
+ $('hero').hidden=page!=='home';let q=query.toLowerCase();
+ let filtered=items.filter(i=>{let s=shopFor(i.seller_id),c=cats.find(x=>x.id===i.category_id);return s&&i.status!=='deleted'&&(!q||(i.title+' '+s.shop_name+' '+(c?.name||'')).toLowerCase().includes(q))&&(category==='all'||i.category_id===category)});
+ let html='';
+ if(page==='home'){
+  html=section('Shop by category','Choose a category to explore',`<div class="chips"><button class="chip ${category==='all'?'active':''}" data-cat="all">All</button>${cats.map(c=>`<button class="chip ${category===c.id?'active':''}" data-cat="${c.id}">${esc(c.name)}</button>`).join('')}</div>`)+section('Discover products','Products listed by sellers across ShopLink',filtered.length?`<div class="grid">${filtered.map(productCard).join('')}</div>`:'<div class="empty">No products found. Try another search.</div>')+section('Explore shops','Visit a seller’s storefront',`<div class="shop-grid">${shops.slice(0,8).map(shopCard).join('')}</div>`);
+ }else if(page==='categories'){
+  html=section('Browse categories','Select a category to see matching products',`<div class="chips"><button class="chip ${category==='all'?'active':''}" data-cat="all">All categories</button>${cats.map(c=>`<button class="chip ${category===c.id?'active':''}" data-cat="${c.id}">${esc(c.name)}</button>`).join('')}</div>`)+`<div class="grid">${filtered.map(productCard).join('')}</div>`;
+ }else if(page==='shops'){
+  html=section('All shops','Discover sellers and visit their storefronts',`<div class="shop-grid">${shops.filter(s=>!q||(s.shop_name+' '+s.shop_type+' '+s.location).toLowerCase().includes(q)).map(shopCard).join('')}</div>`);
+ }else if(page==='deals'){
+  html=section('Top Deals','Special offers from ShopLink sellers','<div class="info-box"><h3>Deals are being prepared</h3><p class="muted">The current product records do not yet contain a verified discount or previous-price field. We will add this properly so that only genuine seller discounts appear here.</p></div>');
+ }else{
+  html=`<div class="info-box"><h2>About ShopLink</h2><p>ShopLink connects sellers and buyers through a shared online marketplace. Customers can discover products from different shops in one place, visit individual seller storefronts and contact sellers directly through WhatsApp.</p><p>ShopLink also provides sellers with tools to manage their products and keep sales and expense records.</p><a class="order" style="max-width:220px" href="index.html">Create a seller account</a></div>`;
+ }
+ $('content').innerHTML=html;
+}
+document.addEventListener('click',e=>{let b=e.target.closest('[data-cat]');if(b){category=b.dataset.cat;render()}});
+$('search').addEventListener('input',e=>{query=e.target.value;render()});
+window.addEventListener('hashchange',render);
+(async()=>{try{const results=await Promise.all([
+ sb.from('shops').select('*'),
+ sb.from('categories').select('*').order('sort'),
+ sb.from('items').select('id,seller_id,title,price,note,status,category_id,created_at,item_media(id,kind,path,created_at)').order('created_at',{ascending:false})
+]);for(const r of results)if(r.error)throw r.error;shops=results[0].data||[];cats=results[1].data||[];items=results[2].data||[];render()}catch(e){$('content').innerHTML=`<div class="empty">We could not load the marketplace: ${esc(e.message||e)}<br><button onclick="location.reload()">Try again</button></div>`}})();
+if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body></html>
