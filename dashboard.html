@@ -423,7 +423,7 @@ async function loadSeller() {
     soft(sb.from('sales').select('*').eq('seller_id', state.me.id).eq('status', 'active').order('sold_at', {ascending: false})),
     soft(sb.from('expenses').select('*').eq('seller_id', state.me.id).eq('status', 'active').order('spent_at', {ascending: false})),
     soft(sb.from('item_costs').select('item_id,cost_price').eq('seller_id', state.me.id)),
-    soft(sb.from('events').select('kind,visitor,item_title,created_at').eq('seller_id', state.me.id).order('created_at', {ascending: false}).limit(5000)),
+    soft(sb.from('events').select('kind,visitor,item_id,item_title,created_at').eq('seller_id', state.me.id).order('created_at', {ascending: false}).limit(5000)),
     ok(sb.from('seller_videos').select('id,path,created_at').eq('seller_id', state.me.id).order('created_at', {ascending: false})),
     loadMessages()
   ]);
@@ -743,13 +743,22 @@ function itemCard(i, active) {
     ? `<video src="${esc(mediaUrl(m.path))}" controls playsinline preload="metadata"></video>`
     : `<img src="${esc(mediaUrl(m.path))}" alt="" loading="lazy">`}<span class="count">${k + 1} of ${media.length}</span></div>`).join('');
   return `<article class="card v${state.highlight === i.id ? ' hl' : ''}" id="item-${i.id}"><div class="tile-wrap"><div class="pics">${pics}</div>${sold ? '<span class="stamp">Sold</span>' : ''}</div>
-    <div class="body">${state.highlight === i.id ? '<span class="hl-badge">A customer asked about this item</span>' : ''}<h3>${esc(i.title)}</h3><p class="muted">${esc(cat ? cat.name : '')}</p><p class="hint">Product ID: ${esc(productCode(i))}</p>
+    <div class="body">${state.highlight === i.id ? '<span class="hl-badge">Customer viewed this item</span>' : ''}<h3>${esc(i.title)}</h3><p class="muted">${esc(cat ? cat.name : '')}</p><p class="hint">Product ID: ${esc(productCode(i))}</p>
     ${i.price != null ? `<p class="price">${esc(money(i.price, curOf(state.me)))}</p>` : ''}${i.note ? `<span class="note">${esc(i.note)}</span>` : ''}
     <div class="actions">
       <button class="btn sm" data-act="sellSheet" data-v="${i.id}">Sold</button>
       <button class="btn ghost sm" data-act="openEdit" data-v="${i.id}" ${active ? '' : 'disabled'}>Edit</button>
       <button class="btn danger sm full" data-act="delMine" data-v="${i.id}">${state.pendingDel === i.id ? 'Tap again to delete' : 'Delete'}</button>
     </div></div></article>`;
+}
+
+function customerViewNotifications() {
+  const seen = new Set();
+  const recent = state.events.filter((e) => e.kind === 'item_view' && e.item_id && e.item_title).filter((e) => {
+    if (seen.has(e.item_id)) return false; seen.add(e.item_id); return true;
+  }).slice(0, 5);
+  if (!recent.length) return '';
+  return `<section class="notice customer-notices" style="margin:1rem 0;padding:1rem;border:1px solid var(--line);border-radius:14px;background:#fff"><b>🔔 Customer product views</b><p class="muted" style="margin:.25rem 0 .65rem">Customers have opened these products in your shop.</p>${recent.map((e) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:.7rem;padding:.55rem 0;border-top:1px solid var(--line)"><span><b>${esc(e.item_title)}</b><br><small class="muted">${esc(fmtDate(e.created_at))}</small></span><a class="btn sm" style="width:auto;white-space:nowrap" href="dashboard.html?item=${encodeURIComponent(e.item_id)}">View product</a></div>`).join('')}</section>`;
 }
 
 function renderShop() {
@@ -767,6 +776,7 @@ function renderShop() {
     <p class="plan-note"><b>Pictures:</b> up to 80 pictures in total, uploaded one at a time. <b>Promotional videos:</b> up to 5 videos, each no longer than 1 minute. Videos do not need product details.</p>
     ${share}</section>
     ${notice}
+    ${customerViewNotifications()}
     <section class="promo-manager"><div class="section-head"><div><h3>Promotional videos</h3><p class="muted">Short videos to attract customers to your shop.</p></div><button class="btn sm" data-act="openPromo" ${active && u.video < 5 ? '' : 'disabled'}>Add video</button></div>
     <div class="promo-grid">${(state.promoVideos || []).map((v) => `<article class="promo-card"><video src="${esc(mediaUrl(v.path))}" controls playsinline preload="metadata"></video><button class="btn danger sm" data-act="delPromo" data-v="${v.id}">${state.pendingDel === 'promo-' + v.id ? 'Tap again to delete' : 'Delete video'}</button></article>`).join('') || '<p class="empty">You have not posted a promotional video yet.</p>'}</div></section>
     <button class="btn" data-act="openAdd" ${active ? '' : 'disabled'}>Add item</button>
@@ -1717,6 +1727,13 @@ setInterval(async () => {
     $('who').textContent = state.role === 'admin' ? 'Admin' : 'Seller';
     if (state.role === 'admin') { await loadAdmin(); state.lastStorageNotice = state.storageLogs[0] ? state.storageLogs[0].id : null; } else await loadSeller();
     render();
+    if (state.role === 'seller') {
+      window.setInterval(async () => {
+        if (document.hidden || state.tab !== 'shop') return;
+        const fresh = await soft(sb.from('events').select('kind,visitor,item_id,item_title,created_at').eq('seller_id', state.me.id).order('created_at', {ascending: false}).limit(100));
+        state.events = fresh; render();
+      }, 30000);
+    }
     if (state.role === 'admin') startAdminStorageNotifications();
   } catch (err) {
     $('app').innerHTML = `<main class="wrap"><p class="err">${esc(err.message || err)}</p><button class="btn" onclick="location.reload()">Try again</button></main>`;

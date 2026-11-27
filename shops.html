@@ -461,6 +461,8 @@ if (only) $('searchbox').hidden = true;
     ]);
     state.shops = shops; state.cats = cats; state.items = items; state.promoVideos = promoVideos;
     if (only) { const sh = shops.find((x) => x.shop_slug === only); if (sh) logEvent('shop_visit', sh.id, null); }
+    // A marketplace product deep-link is also a product view. Record it for the seller.
+    if (state.highlight) { const viewed = items.find((x) => x.id === state.highlight); if (viewed) logEvent('item_view', viewed.seller_id, viewed.id); }
     try { const { data: { session } } = await sb.auth.getSession(); state.meId = session ? session.user.id : null; } catch (e) { /* not signed in */ }
     render();
   } catch (err) {
