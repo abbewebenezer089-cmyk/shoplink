@@ -174,8 +174,7 @@ img.photo{object-position:center 25%}
 <header class="bar">
   <div class="wrap">
     <img src="logo.svg" alt="">
-    <a class="brand" href="shops.html">ShopLink</a>
-    <a class="sell" href="index.html">Sell here</a>
+    <a class="brand" href="index.html">ShopLink</a>
   </div>
 </header>
 <div class="wrap toprow"><button type="button" class="backbtn" id="backbtn" aria-label="Go back">‹ Back</button></div>
@@ -439,10 +438,8 @@ function goBack(fallback) {
   location.href = fallback;
 }
 $('backbtn').addEventListener('click', () => {
-  if (state.sheet) { state.sheet = null; render(); return; }
-  if (state.q) { setQuery(''); return; }
-  if (only) { location.href = 'shops.html'; return; }
-  goBack('index.html');
+  // Always return buyers to the main ShopLink marketplace homepage.
+  location.href = 'index.html';
 });
 $('q').addEventListener('input', (e) => { state.qRaw = e.target.value; state.q = norm(e.target.value); drawSugg(); render(); });
 $('q').addEventListener('search', (e) => { state.qRaw = e.target.value; state.q = norm(e.target.value); drawSugg(); render(); });
@@ -461,8 +458,6 @@ if (only) $('searchbox').hidden = true;
     ]);
     state.shops = shops; state.cats = cats; state.items = items; state.promoVideos = promoVideos;
     if (only) { const sh = shops.find((x) => x.shop_slug === only); if (sh) logEvent('shop_visit', sh.id, null); }
-    // A marketplace product deep-link is also a product view. Record it for the seller.
-    if (state.highlight) { const viewed = items.find((x) => x.id === state.highlight); if (viewed) logEvent('item_view', viewed.seller_id, viewed.id); }
     try { const { data: { session } } = await sb.auth.getSession(); state.meId = session ? session.user.id : null; } catch (e) { /* not signed in */ }
     render();
   } catch (err) {
